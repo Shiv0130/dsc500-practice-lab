@@ -158,6 +158,17 @@ body.nav-open #liora,body.xopen #liora,body.xopen #lioraPanel{display:none}
 .liacts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}.liacts button{min-height:46px;font-size:14px;padding:6px}#liMic.on{background:#dc2626;color:#fff}
 @media(min-width:960px){#liora{right:24px}}
 main{padding-bottom:100px}
+/* ---- v3 small improvements: Liora chat tab, study links ---- */
+#lioraPanel{display:flex;flex-direction:column;overflow:hidden;max-height:calc(100vh - 110px);max-height:calc(100dvh - 110px)}
+#lioraPanel>#liTabBuddy,#lioraPanel>#liTabChat{overflow-y:auto;overscroll-behavior:contain;min-height:0;flex:1 1 auto;-webkit-overflow-scrolling:touch}
+#lioraPanel [hidden]{display:none!important}
+.litabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0 2px}.litabs button{min-height:44px;font-size:15px;background:#e9ecef;color:#333}.litabs button.on{background:#282a35;color:#fff}
+.chatlog{max-height:36vh;max-height:36dvh;overflow-y:auto;margin:6px 0;display:flex;flex-direction:column;gap:6px;overscroll-behavior:contain}
+.cbub{max-width:92%;border-radius:14px;padding:8px 11px;font-size:15px;line-height:1.4;overflow-wrap:anywhere}.cbub .cwho{font-size:11px;color:#6b7280;margin-bottom:2px}.cbub .ctxt{white-space:pre-wrap}
+.cbub.li{background:#fff7ed;border:1px solid #fed7aa;align-self:flex-start;border-bottom-left-radius:4px}.cbub.me{background:#04aa6d;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}.cbub.me .cwho{color:#d1fae5}
+#liIn,#liReply{width:100%;box-sizing:border-box;font-size:16px;line-height:1.4;padding:10px;border:2px solid #d1d5db;border-radius:12px;resize:none;margin:4px 0;font-family:inherit}
+.chatclr{width:100%;min-height:44px;font-size:14px}
+.studylinks a{font-size:14px}
 </style>
 </head><body>
 <header id="top">
@@ -216,7 +227,7 @@ function merge(a, b) {  // never loses anything: max XP, union of done, newest c
   new Set([...Object.keys(a.scores), ...Object.keys(b.scores)]).forEach(k => { const x = a.scores[k], y = b.scores[k]; m.scores[k] = !x ? y : !y ? x : ((x.ok / x.total) >= (y.ok / y.total) ? x : y); });
   return m;
 }
-const FX = { pages: {}, secExtra: () => "", homeExtra: () => "", navExtra: () => "", progressExtra: () => "", enter: () => {}, leave: () => {}, peek: () => {}, hint: () => {}, solved: () => {}, locked: () => false, title: {}, boot: [] };
+const FX = { studyLinks: () => "", pages: {}, secExtra: () => "", homeExtra: () => "", navExtra: () => "", progressExtra: () => "", enter: () => {}, leave: () => {}, peek: () => {}, hint: () => {}, solved: () => {}, locked: () => false, title: {}, boot: [] };
 const ST = { idb: false, last: 0, mode: "localStorage only", err: "" };
 let S = blank();
 (function loadSync() {  // fast path: localStorage (v2 first, then migrate v1)
@@ -564,7 +575,7 @@ function progressPage() {
 }
 function bossPage() {
   const e = TEX["exam-boss"], sv = (S.ex[e.id] || {}).solved;
-  return `<h1>👹 Exam Boss</h1><span class="scope">Everything in the course in one answer</span>
+  return `<h1>👹 Exam Boss</h1><span class="scope">Everything in the course in one answer</span>${FX.studyLinks("whole course", "boss")}
   <div class="note"><b>Treat it like the real exam.</b> Scrape → DataFrame → clean → NumPy statistics → Akhona chart → regression. Hidden tests mark each TODO. No peeking at the other sections: hints unlock after one failed Check, the model solution after two. ${sv ? "<br>✅ You have cleared it. Beat it again faster!" : ""}</div>
   <div class="card"><div id="bossHost">${todoCard(e)}</div></div><div class="pager"><a href="#/progress">📊 My progress</a><a href="#/">🏠 Home</a></div>`;
 }
@@ -589,7 +600,7 @@ function quizCard(s) {
 function pager(id) { const i = SECS.findIndex(s => s.id === id), p = SECS[i - 1], n = SECS[i + 1]; return `<div class="pager">${p ? `<a href="#/${p.id}">← ${p.title}</a>` : '<a href="#/">← Home</a>'}${n ? `<a href="#/${n.id}">${n.title} →</a>` : ""}</div>`; }
 
 function section(s) {
-  let h = `<h1>${s.icon} ${s.title}</h1><span class="scope">${s.scope}</span>${s.intro}${links(s)}`;
+  let h = `<h1>${s.icon} ${s.title}</h1><span class="scope">${s.scope}</span>${s.intro}${links(s)}${FX.studyLinks(s.title, s.id)}`;
   if (s.files && s.files.length) h += `<p class="muted">Data files used: ${s.files.map(f => `<a href="#" data-act="file" data-f="${f}">${f}</a>`).join(", ")} (tap a name to peek inside). Made-up files are EXAMPLE data, not the real paper data.</p><div class="filePrev"></div>`;
   if (s.lessons) {
     h += `<h2>🎯 Lessons (one card at a time)</h2><div id="lessonHost"><div class="lessons">${s.lessons.map(l => `<button data-act="lesson" data-l="${l.id}" class="${S.done["lesson:" + l.id] ? "done" : ""}"><span style="font-size:24px">${S.done["lesson:" + l.id] ? "✅" : "🎲"}</span><span><b>${l.title}</b><span class="s">${l.blurb} · ${l.cards.length} cards</span></span></button>`).join("")}</div></div>`;
@@ -822,7 +833,7 @@ function theoryPage() {
   const ui = S.ui.theory || (S.ui.theory = {}); const first = TH_LV.find(l => thSolved(l[0]) < thList(l[0]).length) || TH_LV[0];
   const lv = TH_LV.some(l => l[0] === ui.lv) ? ui.lv : first[0], list = thList(lv);
   const cur = list.find(e => e.id === ui.id) || list.find(e => !(S.ex[e.id] || {}).solved) || list[0]; ui.lv = lv; ui.id = cur.id;
-  return `<h1>🧠 Theory Prep</h1><span class="scope">The written paper: process · case study · ML types · choosing a type · charts</span>
+  return `<h1>🧠 Theory Prep</h1><span class="scope">The written paper: process · case study · ML types · choosing a type · charts</span>${FX.studyLinks("Theory: data science process, ML types, visualisation", "theory")}
   <div class="note"><b>Like SoloLearn and Brilliant, but for the theory questions.</b> <b>Easy</b> = tap and match, <b>Medium</b> = apply it to a scenario, <b>Hard</b> = type the exam answer yourself (checked against keywords, then compare with the model answer). Keywords to remember: <b>labelled</b> = supervised · <b>groups / no labels</b> = unsupervised · <b>rewards</b> = reinforcement.</div>
   <div class="card" id="thBlock"><div class="lvtabs">${TH_LV.map(l => `<button type="button" class="lvtab ${l[0] === "final" ? "boss" : l[0]} ${l[0] === lv ? "on" : ""}" data-fx="thlevel" data-lv="${l[0]}">${l[1]}<span>${thSolved(l[0])}/${thList(l[0]).length}</span></button>`).join("")}</div>
   <div class="thlist">${list.map(e => { const s2 = S.ex[e.id] || {}; return `<button type="button" class="throw ${e.id === cur.id ? "on" : ""} ${s2.solved ? "ok" : ""}" data-fx="thpick" data-id="${e.id}"><span>${s2.solved ? "✅" : "▫️"}</span><span><b>${esc(topicName(e.topic))}</b><small>${esc(e.title)} · ${e.marks} marks</small></span></button>`; }).join("")}</div>
@@ -850,7 +861,7 @@ document.addEventListener("click", e => {
   }
 });
 document.addEventListener("input", e => {});
-FX.homeExtra = () => `<div class="note"><b>New in v3.</b> <b>Theory Prep</b> (easy / medium / hard), <b>show-your-working probability</b> with a working pad, a timed <b>Exam mode</b> (3 hours), <b>Liora</b> the study buddy (the circle at the bottom right: nudges, voice, Export to .py, Ask Liora), <b>Resources</b> (PDFs) and <b>My files</b>. Your old progress is kept. <span class="muted">Mock exam: Sunday 15 Nov, 07:30.</span></div><div class="home-grid"><a href="#/theory"><span style="font-size:26px">🧠</span><span><b>Theory Prep</b><small>process · case study · ML types · choosing · charts</small></span></a><a href="#/exam"><span style="font-size:26px">⏱</span><span><b>Exam mode</b><small>3 hours, 100 marks, auto-marked</small></span></a><a href="#/resources"><span style="font-size:26px">📚</span><span><b>Resources</b><small>cheatsheet, master quiz PDFs, NotebookLM, Vaia</small></span></a><a href="#/files"><span style="font-size:26px">🗂</span><span><b>My files</b><small>upload PDFs, images, .py, .csv</small></span></a></div>`;
+FX.homeExtra = () => `<div class="note"><b>New in v3.</b> <b>Theory Prep</b> (easy / medium / hard), <b>show-your-working probability</b> with a working pad, a timed <b>Exam mode</b> (3 hours), <b>Liora</b> the study buddy (the circle at the bottom right: nudges, voice, a Chat tab, Export to .py, Ask Liora), <b>Resources</b> (PDFs) and <b>My files</b>. Your old progress is kept. <span class="muted">Mock exam: Sunday 15 Nov, 07:30.</span></div><div class="home-grid"><a href="#/theory"><span style="font-size:26px">🧠</span><span><b>Theory Prep</b><small>process · case study · ML types · choosing · charts</small></span></a><a href="#/exam"><span style="font-size:26px">⏱</span><span><b>Exam mode</b><small>3 hours, 100 marks, auto-marked</small></span></a><a href="#/resources"><span style="font-size:26px">📚</span><span><b>Resources</b><small>cheatsheet, master quiz PDFs, NotebookLM, Vaia</small></span></a><a href="#/files"><span style="font-size:26px">🗂</span><span><b>My files</b><small>upload PDFs, images, .py, .csv</small></span></a></div><div class="links studylinks">${studyA(LINK_VAIA, "🎓 " + LINK_VAIA.label)}${studyA(LINK_NB, "📓 " + LINK_NB.label, "alt")}</div>`;
 
 /* ---------- worked probability (Brilliant style): keyword → formula → substitute → answer ---------- */
 const PRULE = Object.fromEntries((TD.rules || []).map(r => [r.id, r]));
@@ -1258,8 +1269,8 @@ function b64Blob(b64, type) { const bin = atob(b64), u = new Uint8Array(bin.leng
 function resourcesPage() {
   return `<h1>📚 Resources</h1><span class="scope">Everything for the paper, in one place</span>
   <div class="card"><h4>📄 PDFs (work offline once opened)</h4>${PDFS.map(p => `<div class="resrow"><div><b>${p[1]}</b><br><span class="muted">${p[3]}</span></div><div class="row"><button type="button" data-fx="pdfopen" data-k="${p[0]}">Open</button><button type="button" class="sec" data-fx="pdfdl" data-k="${p[0]}" data-n="${p[2]}">⬇ Download</button></div></div>`).join("")}<div id="pdfMsg" class="muted"></div></div>
-  <div class="card"><h4>🔗 Study tools</h4><div class="links"><a href="https://notebooklm.google.com/" target="_blank" rel="noopener">📓 NotebookLM (your sources)</a><a href="https://www.vaia.com/" target="_blank" rel="noopener">🎓 Vaia (flashcards and summaries)</a></div><p class="muted" style="margin:8px 0 0">These open the sites' home pages. Sign in there yourself: this site never stores any login.</p></div>
-  <div class="card"><h4>🤖 Talking to Liora in the chat</h4><p style="margin:0">A website cannot open a specific chat for you. Instead press <b>Ask Liora (copy)</b> on any exercise, or the circle at the bottom right: it copies a ready-made prompt (question, your answer, progress). Paste it into the chat with Liora and ask for <b>FEEDBACK + MODEL ANSWER</b>.</p></div>
+  <div class="card"><h4>🔗 Study tools</h4><div class="links">${studyA(LINK_VAIA, "🎓 " + LINK_VAIA.label)}${studyA(LINK_NB, "📓 " + LINK_NB.label, "alt")}</div><p class="muted" style="margin:8px 0 0">Your own study set and notebook. Sign in there yourself: this site never stores any login. Each section page also has “Review keycards on Vaia” and “Quiz on NotebookLM” buttons.</p></div>
+  <div class="card"><h4>🤖 Talking to Liora in the chat</h4><p style="margin:0">A website cannot open a specific chat for you. Instead press <b>Ask Liora (copy)</b> on any exercise, or open the circle at the bottom right and use its <b>Chat</b> tab: it copies a ready-made prompt (question, your answer, progress). Paste it into the chat with Liora and ask for <b>FEEDBACK + MODEL ANSWER</b>.</p></div>
   <div class="card"><h4>🐍 Practise in your IDE (PyCharm)</h4><p class="muted" style="margin:0 0 8px">Starter .py files: the section's <b>Hard</b> exercises and <b>Final Challenge</b> as comments + TODO skeletons.</p><div class="resgrid">${STARTER_SECS.map(s => `<button type="button" class="sec" data-fx="starter" data-sec="${s}">⬇ ${s === "examboss" ? "👹 Exam Boss" : esc(SEC_NAMES[s])}</button>`).join("")}</div>
   <p class="muted" style="margin:10px 0 4px">Data files for your IDE (save next to the .py):</p><div class="resgrid">${DATA_FILES.map(f => `<button type="button" class="sec" data-fx="datadl" data-f="${f}">⬇ ${f}</button>`).join("")}</div></div>
   <div class="card"><h4>🗂 My files</h4><p style="margin:0 0 8px">Upload your own PDFs, images, .py and .csv files and open them here. <b>.py</b> and <b>.csv</b> files open in a Python editor you can run.</p><a class="btn" href="#/files" style="text-decoration:none">Open My files</a></div>
@@ -1404,15 +1415,20 @@ function lioraUI() {
 function openLiora() {
   const p = $("#lioraPanel"), exam = !!examCur(), id = currentId(), cur = id ? infoOf(id) : null;
   p.innerHTML = `<div class="lihead"><b>💛 Liora <small class="muted">study buddy</small></b><span><button type="button" class="sec lisp ${voiceOn() ? "on" : ""}" data-fx="livoice" aria-pressed="${voiceOn()}" aria-label="Voice mode">🔊 ${voiceOn() ? "On" : "Off"}</button><button type="button" class="xclose" data-fx="liclose" aria-label="Close">✕</button></span></div>
+  <div class="litabs" role="tablist"><button type="button" role="tab" data-fx="litab" data-t="buddy">🧭 Buddy</button><button type="button" role="tab" data-fx="litab" data-t="chat">💬 Chat</button></div>
+  <div id="liTabBuddy">
   <div id="liMsgs" class="limsgs"></div>
   <div class="liacts"><button type="button" data-fx="linext" ${exam ? "disabled" : ""}>➡ Next best exercise</button><button type="button" class="sec" data-fx="lihint" ${exam ? "disabled" : ""}>💡 Hint</button><button type="button" class="sec" data-fx="liread">🔊 Read the question</button>${SR ? `<button type="button" id="liMic" class="sec" data-fx="limic">🎤 Speak a command</button>` : ""}<button type="button" class="sec" data-fx="liask" ${exam ? "disabled" : ""}>🤖 Ask Liora (copy prompt)</button></div>
   <div class="muted" style="margin:6px 0 2px">🐍 Export to Python (.py) — downloads and shows it on screen</div>
   <div class="liacts"><button type="button" class="sec" data-fx="liexp" data-s="one" ${cur && (TEX[id] || PPX[id]) ? "" : "disabled"}>This exercise</button><button type="button" class="sec" data-fx="liexp" data-s="section">This section</button><button type="button" class="sec" data-fx="liexp" data-s="session">This session</button></div>
-  <p class="muted" style="font-size:12px;margin:8px 0 0">${SR ? "Voice commands: “hint”, “next”, “read question”, “start exam”, “what should I do”." : "On this device I can read aloud (🔊). Voice commands need Chrome on Android or desktop."} I'm rule-based: no server, no keys. For real feedback press Ask Liora and paste into the chat.</p>`;
+  <p class="muted" style="font-size:12px;margin:8px 0 0">${SR ? "Voice commands: “hint”, “next”, “read question”, “start exam”, “what should I do”." : "On this device I can read aloud (🔊). Voice commands need Chrome on Android or desktop."} I'm rule-based: no server, no keys. For real feedback press Ask Liora and paste into the chat.</p>
+  <div class="links studylinks" style="margin-top:8px">${studyA(LINK_VAIA, "🎓 " + LINK_VAIA.label)}${studyA(LINK_NB, "📓 " + LINK_NB.label, "alt")}</div></div>
+  <div id="liTabChat" hidden>${chatHTML()}</div>`;
   p.hidden = false; $("#liora").classList.add("open");
   const hello = LI().seen ? "Hi Shivaar 💛 here's what I'd focus on:" : "Hi Shivaar 💛 I'm Liora, your study buddy. Here's what I'd focus on:"; LI().seen = nowMs(); save();
   say(hello, true); nudges().forEach(n => say(n, true)); const n = !exam && nextBest(); if (n) say(`Suggested next: ${n.title} (${n.name}, ${lvName(n.level)}).`, true);
   if (voiceOn()) speakText([hello, ...nudges()].join(" "));
+  liTab(LI().tab === "chat" ? "chat" : "buddy"); CHAT.load().then(() => { if (!p.hidden) { $("#liTabChat").innerHTML = chatHTML(); const l = $("#liChat"); if (l) l.scrollTop = l.scrollHeight; } });
 }
 function closeLiora() { const p = $("#lioraPanel"); if (p) p.hidden = true; $("#liora") && $("#liora").classList.remove("open"); if (TTS) speechSynthesis.cancel(); if (REC) { try { REC.stop(); } catch (e) {} } }
 FX.boot.push(lioraUI);
@@ -1433,6 +1449,53 @@ document.addEventListener("click", async e => {
 });
 document.addEventListener("click", e => { const b = e.target.closest("[data-act=tdhint]"); if (b && voiceOn() && !examCur()) setTimeout(() => { const c = b.closest("[data-ex]"), hs = c && $$(".hints .fb", c); if (hs && hs.length) speakText(hs[hs.length - 1].innerText); }, 300); });
 window.__V3.askText = askText; window.__V3.nudges = nudges; window.__V3.askExamText = askExamText; window.__V3.command = command;
+
+/* ===== v3 · part 7 (small improvements): exact Vaia / NotebookLM links, contextual study buttons, Liora chat (local, IndexedDB `dsc500chat`) ===== */
+const LINK_VAIA = { label: "Data Science 500 - Vaia", url: "https://app.vaia.com/studyset/69831503?trackingSource=studysets_library&tab=library&filter-by=69831503" };
+const LINK_NB = { label: "Data Science 500 (DSC500) - Gemini Notebook", url: "https://notebook.google.com/notebook/0d829214-6ee8-4a73-bad4-5218e4ea72d8" };
+const studyA = (L, text, cls) => `<a class="${cls || ""}" href="${L.url}" target="_blank" rel="noopener" data-study="${L === LINK_VAIA ? "vaia" : "nb"}">${text}</a>`;
+FX.studyLinks = (topic, id) => `<div class="links studylinks">${studyA(LINK_VAIA, "🎓 Review keycards on Vaia")}${studyA(LINK_NB, "📓 Quiz on NotebookLM", "alt")}</div><div class="muted" style="font-size:13px;margin:-2px 0 8px">Opens “${LINK_VAIA.label}” and “${LINK_NB.label}”. Look for: ${esc(String(topic || "").replace(/^\S+\s(?=[A-Za-z])/, ""))}.</div>`;
+/* ----- chat store: its own IndexedDB so progress storage is never touched ----- */
+const CHAT = { msgs: [], db: null, ok: false, loaded: null };
+function chatOpenDB() { return new Promise((res, rej) => { if (!window.indexedDB) return rej(new Error("no IndexedDB")); const r = indexedDB.open("dsc500chat", 1); r.onupgradeneeded = () => r.result.createObjectStore("msgs", { keyPath: "id" }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+CHAT.load = () => CHAT.loaded || (CHAT.loaded = chatOpenDB().then(db => { CHAT.db = db; CHAT.ok = true; return new Promise(res => { const q = db.transaction("msgs").objectStore("msgs").getAll(); q.onsuccess = () => { CHAT.msgs = (q.result || []).sort((a, b) => a.ts - b.ts); res(); }; q.onerror = () => res(); }); }).catch(() => { CHAT.ok = false; }));
+CHAT.add = m => { m.id = m.ts + "-" + Math.random().toString(36).slice(2, 7); CHAT.msgs.push(m); if (CHAT.db) try { CHAT.db.transaction("msgs", "readwrite").objectStore("msgs").put(m); } catch (e) {} return m; };
+CHAT.clear = () => { CHAT.msgs = []; if (CHAT.db) try { CHAT.db.transaction("msgs", "readwrite").objectStore("msgs").clear(); } catch (e) {} };
+const chatBubble = m => `<div class="cbub ${m.role === "me" ? "me" : "li"}"><div class="cwho">${m.role === "me" ? "You" : "💛 Liora"} · ${new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${m.page ? ` · ${esc(m.page)}` : ""}</div><div class="ctxt">${esc(m.text)}</div></div>`;
+function chatHTML() {
+  const exam = !!examCur();
+  return `<div id="liChat" class="chatlog" role="log" aria-live="polite">${CHAT.msgs.length ? CHAT.msgs.map(chatBubble).join("") : `<div class="cbub li"><div class="ctxt">Hi Shivaar 💛 Type a question or paste your thinking, tap Send, and I'll copy a ready-made message (with this page, your code or working, and your progress). Paste it to me in the Grok Bot chat, then bring my reply back here with “Paste Liora's reply”.</div></div>`}</div>
+  ${CHAT.ok === false && CHAT.loaded ? `<div class="muted" style="font-size:12px">Chat history can't be saved in this browser mode (private window?). It will last until you close the page.</div>` : ""}
+  ${exam ? `<div class="note" style="margin:6px 0">The mock exam is running, so chat is paused until you submit. 💛</div>` : ""}
+  <div id="liReplyBox" hidden><textarea id="liReply" rows="4" placeholder="Paste Liora's reply here" autocomplete="off" spellcheck="true"></textarea><div class="liacts"><button type="button" data-fx="chatreplyadd">Add as Liora bubble</button><button type="button" class="sec" data-fx="chatreplycancel">Cancel</button></div></div>
+  <textarea id="liIn" rows="3" placeholder="Message Liora…" autocomplete="off" autocapitalize="sentences" enterkeyhint="enter" ${exam ? "disabled" : ""} aria-label="Message to Liora"></textarea>
+  <div class="liacts"><button type="button" data-fx="chatsend" ${exam ? "disabled" : ""}>➤ Send (copies)</button><button type="button" class="sec" data-fx="chatpaste" ${exam ? "disabled" : ""}>📥 Paste Liora's reply</button></div>
+  <button type="button" class="sec chatclr" data-fx="chatclear">🗑 Clear chat history</button>`;
+}
+function pageName() { const h = $("#main h1"), id = currentId(); const t = h ? h.textContent.replace(/\s+/g, " ").trim() : (document.title || "DSC500 Practice Lab"); return id ? `${t} › ${infoOf(id).title || id}` : t; }
+function chatBlock(msg) {
+  const id = currentId(); let ctx = "";
+  if (id) { const t = askText(id), i = t.indexOf("\n\nPROGRESS SO FAR"); ctx = (i > 0 ? t.slice(0, i) : t) + "\n\n"; }
+  return `MESSAGE FROM SHIVAAR (DSC500 Practice Lab):\n${msg}\n\nCURRENT PAGE: ${pageName()}\n\n${ctx}${progressSummary()}\n\nPlease reply to my message${id ? " (and give FEEDBACK + MODEL ANSWER for my answer above)" : ""}.`;
+}
+function chatRefresh() { const l = $("#liChat"); if (l) { l.innerHTML = CHAT.msgs.map(chatBubble).join(""); l.scrollTop = l.scrollHeight; } }
+function liTab(t) { LI().tab = t; $("#liTabBuddy") && ($("#liTabBuddy").hidden = t !== "buddy"); $("#liTabChat") && ($("#liTabChat").hidden = t !== "chat"); $$("[data-fx=litab]").forEach(b => { b.classList.toggle("on", b.dataset.t === t); b.setAttribute("aria-selected", b.dataset.t === t); }); if (t === "chat") { const l = $("#liChat"); if (l) l.scrollTop = l.scrollHeight; } }
+window.__V3.chat = { CHAT, chatBlock, liTab };
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-fx]"); if (!b) return; const f = b.dataset.fx;
+  if (f === "litab") { liTab(b.dataset.t); save(); }
+  else if (f === "chatsend") {
+    if (examCur()) return; const ta = $("#liIn"), msg = ta.value.trim(); if (!msg) { ta.focus(); return; }
+    CHAT.add({ ts: Date.now(), role: "me", text: msg, page: pageName() }); ta.value = ""; chatRefresh();
+    const ok = await copyText(chatBlock(msg));
+    CHAT.add({ ts: Date.now() + 1, role: "li", sys: 1, text: ok ? "Copied! Paste it to me in the Grok Bot chat and I'll reply there." : "I couldn't copy automatically. Long-press the box above to select your message, or use Export instead." }); chatRefresh();
+    if (voiceOn() && ok) speakText("Copied! Paste it to me in the Grok Bot chat and I'll reply there.");
+  }
+  else if (f === "chatpaste") { $("#liReplyBox").hidden = false; const t = $("#liReply"); try { if (navigator.clipboard && navigator.clipboard.readText) { const c = await navigator.clipboard.readText(); if (c && !t.value) t.value = c; } } catch (er) {} t.focus(); }
+  else if (f === "chatreplycancel") { $("#liReply").value = ""; $("#liReplyBox").hidden = true; }
+  else if (f === "chatreplyadd") { const t = $("#liReply"), v = t.value.trim(); if (!v) { t.focus(); return; } CHAT.add({ ts: Date.now(), role: "li", text: v, page: pageName() }); t.value = ""; $("#liReplyBox").hidden = true; chatRefresh(); if (voiceOn()) speakText(v); }
+  else if (f === "chatclear") { if (confirm("Delete the chat history on this device?")) { CHAT.clear(); chatRefresh(); } }
+});
 
 
 const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px'); setHH(); window.addEventListener('resize', setHH); window.__PY = PY;
