@@ -109,6 +109,24 @@ label.filebtn input{position:absolute;inset:0;opacity:0;width:100%;height:100%;c
 textarea.code[readonly]{background:#eef0f3}
 #impTxt,#expTxt{word-break:break-all}
 .solbox pre.out{max-height:420px;overflow:auto}
+/* ---- v3: theory prep, worked probability, weak spots ---- */
+.lvtab.boss.on{background:#ede9fe;border-color:#7c3aed}
+.thlist{display:grid;gap:6px;margin:10px 0}
+.throw{display:flex;gap:10px;align-items:center;text-align:left;background:#fff;color:#1f2933;border:2px solid #cbd2d9;min-height:52px;padding:6px 10px;font-size:15px;font-weight:500}
+.throw small{display:block;font-weight:400;color:#6b7280;font-size:13px}.throw.on{border-color:#2563eb;background:#eff6ff}.throw.ok{border-color:#16a34a}
+.tpart{margin:14px 0;padding:10px 0;border-top:1px dashed #cbd2d9}.tpart:first-of-type{border-top:0}
+textarea.tx{width:100%;box-sizing:border-box;min-height:140px;font:16px/1.45 system-ui,sans-serif;padding:10px;border:2px solid #cbd2d9;border-radius:10px;resize:vertical}
+.tcount{text-align:right;font-size:12px}
+.pairs .pr{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px;border:2px solid #e5e7eb;border-radius:10px;margin:6px 0}
+.pairs .pr>span{flex:1 1 220px;overflow-wrap:anywhere}.pairs select{flex:1 1 220px;min-height:46px;font-size:16px;max-width:100%;padding:6px;border-radius:8px;border:2px solid #cbd2d9;background:#fff}
+.pairs .pr.ok{border-color:#16a34a;background:#f0fdf4}.pairs .pr.no{border-color:#dc2626;background:#fef2f2}
+.chipo.ok{border-color:#16a34a;background:#dcfce7}.chipo.no{border-color:#dc2626;background:#fee2e2}
+.pstep{border:2px solid #e5e7eb;border-radius:12px;padding:10px;margin:10px 0}.pstep.active{border-color:#2563eb}.pstep.ok{border-color:#16a34a;background:#f0fdf4}.pstep.rev{border-color:#d97706;background:#fffbeb}.pstep.lock{opacity:.55}
+.pstep .pin{width:100%;box-sizing:border-box;font-size:17px;min-height:48px;margin:8px 0 4px}
+.rulelist .choice{margin:5px 0}.flist{padding-left:18px}.flist li{margin:8px 0}.rule{font-family:ui-monospace,Menlo,monospace;color:#1d4ed8;overflow-wrap:anywhere}
+.why{margin:8px 0 0;padding-left:20px}
+ul.weak{list-style:none;padding:0;margin:0}ul.weak li{padding:8px 0;border-top:1px solid #e5e7eb;line-height:1.35}ul.weak li:first-child{border-top:0}
+.pk button{min-width:44px}
 </style>
 </head><body>
 <header id="top">
@@ -129,12 +147,25 @@ const DATA_FILES = ["books_page1.html", "books_sales.csv", "practice_students.cs
 
 /* ---------- saved progress: IndexedDB (main) + localStorage mirror (fallback) ---------- */
 const KEY1 = "dsc500lab.v1", KEY2 = "dsc500lab.v2", DBN = "dsc500lab";
-const blank = () => ({ v: 2, ts: 0, xp: 0, streak: 0, best: 0, done: {}, edits: {}, editTs: {}, ex: {}, scores: {}, ui: {} });
+const blank = () => ({ v: 2, ts: 0, xp: 0, streak: 0, best: 0, done: {}, edits: {}, editTs: {}, ex: {}, scores: {}, ui: {}, exam: { cur: null, hist: [] }, liora: {} });  // v3 only ADDS keys: the v2 schema and keys are unchanged
 function normalize(o) {  // accepts v1 (old keys) and v2 objects; always returns a complete v2 object
   const n = blank(); if (!o || typeof o !== "object") return n;
   n.xp = +o.xp || 0; n.streak = +o.streak || 0; n.best = +o.best || 0; n.ts = +o.ts || 0;
-  ["done", "edits", "editTs", "ex", "scores", "ui"].forEach(k => { if (o[k] && typeof o[k] === "object") n[k] = o[k]; });
+  ["done", "edits", "editTs", "ex", "scores", "ui", "liora"].forEach(k => { if (o[k] && typeof o[k] === "object") n[k] = o[k]; });
+  if (o.exam && typeof o.exam === "object") n.exam = { cur: o.exam.cur || null, hist: Array.isArray(o.exam.hist) ? o.exam.hist : [] };
   return n;
+}
+function mergeEx(x, y) {  // generic: numbers -> max, flags -> OR, nested objects / text -> the newer record; nothing is ever dropped
+  const o = {}, newer = (x.ts || 0) >= (y.ts || 0) ? x : y;
+  new Set([...Object.keys(x), ...Object.keys(y)]).forEach(k => {
+    const p = x[k], q = y[k];
+    if (p === undefined || q === undefined) o[k] = p !== undefined ? p : q;
+    else if (typeof p === "number" && typeof q === "number") o[k] = Math.max(p, q);
+    else if (typeof p === "boolean" && typeof q === "boolean") o[k] = p || q;
+    else o[k] = newer[k];
+  });
+  if (o.skipped !== undefined) o.skipped = !o.solved && !!(x.skipped || y.skipped);
+  return o;
 }
 function merge(a, b) {  // never loses anything: max XP, union of done, newest code per editor, best result per exercise
   const m = blank(), nw = (a.ts || 0) >= (b.ts || 0) ? a : b;
@@ -146,11 +177,15 @@ function merge(a, b) {  // never loses anything: max XP, union of done, newest c
   });
   new Set([...Object.keys(a.ex), ...Object.keys(b.ex)]).forEach(k => {
     const x = a.ex[k], y = b.ex[k]; if (!x || !y) { m.ex[k] = x || y; return; }
-    m.ex[k] = { best: Math.max(x.best || 0, y.best || 0), total: x.total || y.total, solved: !!(x.solved || y.solved), fails: Math.max(x.fails || 0, y.fails || 0), tries: Math.max(x.tries || 0, y.tries || 0), hints: Math.max(x.hints || 0, y.hints || 0), ts: Math.max(x.ts || 0, y.ts || 0) };
+    m.ex[k] = mergeEx(x, y);
   });
+  m.liora = Object.assign({}, a.liora, b.liora, nw.liora);
+  const seen = new Set(), hist = []; [...a.exam.hist, ...b.exam.hist].forEach(h => { const key = h && h.ts; if (key && !seen.has(key)) { seen.add(key); hist.push(h); } });
+  m.exam = { cur: nw.exam.cur || (a.exam.cur || b.exam.cur) || null, hist: hist.sort((p, q) => p.ts - q.ts) };
   new Set([...Object.keys(a.scores), ...Object.keys(b.scores)]).forEach(k => { const x = a.scores[k], y = b.scores[k]; m.scores[k] = !x ? y : !y ? x : ((x.ok / x.total) >= (y.ok / y.total) ? x : y); });
   return m;
 }
+const FX = { pages: {}, secExtra: () => "", homeExtra: () => "", navExtra: () => "", progressExtra: () => "", enter: () => {}, leave: () => {}, peek: () => {}, hint: () => {}, solved: () => {}, locked: () => false, title: {}, boot: [] };
 const ST = { idb: false, last: 0, mode: "localStorage only", err: "" };
 let S = blank();
 (function loadSync() {  // fast path: localStorage (v2 first, then migrate v1)
@@ -376,7 +411,7 @@ const TD = window.TODO || { ex: [], prob: {}, theory: {} };
 const TEX = Object.fromEntries(TD.ex.map(e => [e.id, e]));
 const LV = { easy: { n: "Easy", ico: "🟢", xp: 15, hintFails: 0, solFails: 1, d: "1–3 TODOs, guided" }, medium: { n: "Medium", ico: "🟡", xp: 25, hintFails: 0, solFails: 2, d: "several TODOs, less hinting" }, hard: { n: "Hard", ico: "🔴", xp: 40, hintFails: 1, solFails: 2, d: "exam style: only TODO comments, hints unlock after a failed Check" }, boss: { n: "Final Challenge", ico: "🏆", xp: 75, hintFails: 1, solFails: 2, d: "everything in the section" } };
 const SEC_EX = (sec, lv) => TD.ex.filter(e => e.sec === sec && e.level === lv);
-const exState = id => S.ex[id] || (S.ex[id] = { best: 0, total: TEX[id].tests.length, solved: false, fails: 0, tries: 0, hints: 0, ts: 0 });
+const exState = id => S.ex[id] || (S.ex[id] = { best: 0, total: (TEX[id] || { tests: [] }).tests.length, solved: false, fails: 0, tries: 0, hints: 0, ts: 0 });
 const nSolved = (sec, lv) => SEC_EX(sec, lv).filter(e => S.ex[e.id] && S.ex[e.id].solved).length;
 const SYMS2 = SYMS;
 function todoEditor(e) {
@@ -425,7 +460,7 @@ function setGrade(box, e, r) {
   const todos = Object.keys(byTodo).map(Number).sort((a, b) => a - b), okTodos = todos.filter(n => byTodo[n].every(c => c.ok)).length;
   const prev = st.solved; st.tries++; st.ts = Date.now(); st.total = total; st.best = Math.max(st.best, passed);
   let msg = "";
-  if (all) { if (!st.solved) { st.solved = true; addXP(L.xp); msg = ` <b>+${L.xp} XP</b>`; } right(); } else { st.fails++; wrong(); }
+  if (all) { if (!st.solved) { st.solved = true; FX.solved(e.id); addXP(L.xp); msg = ` <b>+${L.xp} XP</b>`; } right(); } else { st.fails++; wrong(); }
   save(); buildNav();
   let h = `<div class="out-h">RESULT: ${okTodos} of ${todos.length} TODOs ✅ · ${passed}/${total} checks</div><div class="pbar"><i style="width:${Math.round(passed / total * 100)}%"></i></div><ul class="tdres">` +
     todos.map(n => { const cs = byTodo[n], ok = cs.every(c => c.ok); return `<li class="${ok ? "ok" : "no"}"><b>${ok ? "✅" : "❌"} TODO ${n}</b>${cs.filter(c => !c.ok).map(c => `<br><span class="muted">needs: ${esc(c.label)}</span>`).join("")}</li>`; }).join("") + "</ul>";
@@ -449,9 +484,10 @@ function refreshCard(box, e) {  // update the locks, counters and tabs without t
 }
 async function tdAction(b) {
   const act = b.dataset.act, box = b.closest(".ex.todo"), e = TEX[box.dataset.ex], ed = $(".ed", box), ta = $("textarea", ed), ob = $(".outbox", box);
-  if (act === "tdhint") { const st = exState(e.id); if (st.hints < e.hints.length) { st.hints++; save(); $(".hints", box).innerHTML = e.hints.slice(0, st.hints).map((h, i) => `<div class="fb info"><b>Hint ${i + 1}:</b> ${h}</div>`).join(""); refreshCard(box, e); } return; }
-  if (act === "tdsol") { const sb = $(".solbox", box); if (sb.innerHTML.trim()) { sb.innerHTML = ""; return; } sb.innerHTML = `<div class="out-h">MODEL SOLUTION (every line commented)</div><pre class="out" style="white-space:pre-wrap">${esc(e.solution)}</pre><button class="sec" type="button" data-act="tdload">⬆ Load the solution into the editor</button>`; return; }
-  if (act === "tdload") { ta.value = e.solution; S.edits["todo-" + e.id] = e.solution; S.editTs["todo-" + e.id] = Date.now(); save(); fit(ta); return; }
+  if ((act === "tdhint" || act === "tdsol" || act === "tdload" || act === "tdrun" || act === "tdcheck") && FX.locked(act)) return;
+  if (act === "tdhint") { FX.hint(e.id); const st = exState(e.id); if (st.hints < e.hints.length) { st.hints++; save(); $(".hints", box).innerHTML = e.hints.slice(0, st.hints).map((h, i) => `<div class="fb info"><b>Hint ${i + 1}:</b> ${h}</div>`).join(""); refreshCard(box, e); } return; }
+  if (act === "tdsol") { const sb = $(".solbox", box); if (sb.innerHTML.trim()) { sb.innerHTML = ""; return; } FX.peek(e.id); sb.innerHTML = `<div class="out-h">MODEL SOLUTION (every line commented)</div><pre class="out" style="white-space:pre-wrap">${esc(e.solution)}</pre><button class="sec" type="button" data-act="tdload">⬆ Load the solution into the editor</button>`; return; }
+  if (act === "tdload") { FX.peek(e.id); ta.value = e.solution; S.edits["todo-" + e.id] = e.solution; S.editTs["todo-" + e.id] = Date.now(); save(); fit(ta); return; }
   if (act === "tdreset") { if (!confirm("Start this exercise over? Your code here is replaced by the skeleton.")) return; delete S.edits["todo-" + e.id]; delete S.editTs["todo-" + e.id]; const st = exState(e.id); st.solved = false; st.best = 0; st.fails = 0; st.hints = 0; st.tries = 0; save(); ta.value = e.skeleton; fit(ta); ob.innerHTML = ""; $(".solbox", box).innerHTML = ""; $(".hints", box).innerHTML = ""; refreshCard(box, e); buildNav(); return; }
   ob.innerHTML = '<div class="loading"><div class="spin"></div><span class="msg">Starting Python… (the first run downloads packages, ~10-40 s on mobile data)</span></div>';
   const msg = t => { const m = $(".msg", ob); if (m) m.textContent = t; };
@@ -482,7 +518,7 @@ function progressPage() {
   const edN = Object.keys(S.edits).length, saved = ST.last ? new Date(ST.last).toLocaleTimeString() : "not yet";
   return `<h1>📊 My progress</h1><p class="muted">Saved automatically on this device. Use Export to move it between your phone and laptop.</p>
   <div class="stats"><div><b>${S.xp}</b><span>⭐ XP</span></div><div><b>${S.best}</b><span>🔥 best streak</span></div><div><b>${solved.length}/${all.length}</b><span>#TODO exercises</span></div><div><b>${bosses.filter(e => (S.ex[e.id] || {}).solved).length}/${bosses.length}</b><span>🏆 bosses</span></div></div>
-  <div class="card"><h4>👹 Exam Boss</h4>${eb.solved ? "✅ Cleared!" : eb.tries ? `Best so far: ${eb.best}/${eb.total} checks. <a href="#/boss">Try again</a>` : `Not attempted yet. <a href="#/boss">Take it on</a>`}</div>
+  ${FX.progressExtra()}<div class="card"><h4>👹 Exam Boss</h4>${eb.solved ? "✅ Cleared!" : eb.tries ? `Best so far: ${eb.best}/${eb.total} checks. <a href="#/boss">Try again</a>` : `Not attempted yet. <a href="#/boss">Take it on</a>`}</div>
   <div class="card"><h4>Section by section</h4><table class="t"><tr><th>Section</th><th>Easy</th><th>Med</th><th>Hard</th><th>Boss</th><th>Quiz</th></tr>${theoryRows}${CODE_SECS.map(row).join("")}<tr><td><a href="#/probability">${SEC_NAMES.probability}</a></td><td colspan="5">Calculation challenges (easy · medium · hard · final): ${probDone}</td></tr></table></div>
   <div class="card"><h4>💾 Where your progress lives</h4><p class="muted" style="margin:0">${esc(ST.mode)}. Last save: ${saved}. Your typed code is kept for ${edN} editors. ${ST.err ? "<br>⚠️ " + esc(ST.err) : ""}</p>
   <p class="muted">It survives closing the tab, refreshing and new site versions (same address). It does NOT travel between devices by itself: use Export / Import below. Clearing Safari / Chrome website data deletes it, so export a copy before the exam.</p></div>
@@ -528,6 +564,7 @@ function section(s) {
   if (s.snippets.length) h += `<h2>${s.lessons ? "▶ Law of large numbers: run it" : "💻 Examples: edit and run"}</h2>` + s.snippets.map(x => exBox(x)).join("");
   if (s.debug.length) h += `<h2>🐞 Find and fix the bug</h2>` + s.debug.map(dbgBox).join("");
   h += todoBlock(s);
+  h += FX.secExtra(s);
   if (s.id === "probability") h += probBlock();
   h += quizCard(s);
   h += finalBlock(s);
@@ -545,7 +582,7 @@ function home() {
   <li>First Run downloads Python packages (numpy ~ few MB, pandas / matplotlib / scikit-learn more). Best on Wi-Fi. After that they are cached.</li></ul>
   <button class="big sec" data-act="preload">⬇ Pre-load all packages now (Wi-Fi recommended)</button><div id="preMsg" class="muted"></div></div>
   <div class="card"><b>Progress:</b> ⭐ ${S.xp} XP · 🔥 best streak ${S.best} · ${doneN} lessons/quizzes · ${Object.values(S.ex).filter(x => x.solved).length}/${TD.ex.length} #TODO exercises <a href="#/progress" class="btn sec" style="float:right;min-height:36px;padding:4px 12px;text-decoration:none">📊 Dashboard</a></div>
-  <div class="home-grid"><a href="#/boss"><span style="font-size:26px">👹</span><span><b>Exam Boss</b><small>scrape → clean → stats → chart → regression, graded</small></span></a></div>
+  ${FX.homeExtra()}<div class="home-grid"><a href="#/boss"><span style="font-size:26px">👹</span><span><b>Exam Boss</b><small>scrape → clean → stats → chart → regression, graded</small></span></a></div>
   <div class="note"><b>New: #TODO practice.</b> Every code topic has Easy, Medium and Hard exercises where you write the code from numbered # TODO comments (like the exam), plus a Final Challenge. Progress saves automatically; export it from the dashboard.</div>
   ${groups.map(g => `<h2>${g}</h2><div class="home-grid">${SECS.filter(s => s.group === g).map(s => `<a href="#/${s.id}"><span style="font-size:26px">${s.icon}</span><span><b>${s.title}</b><small>${s.scope.replace(/^[A-Za-z ()]+: /, "")}</small></span></a>`).join("")}</div>`).join("")}
   <h2>🚫 Not in scope (skip these)</h2><div class="oos">Central limit theorem · R² · confusion matrix, precision, recall, F1 · binomial probability.</div>
@@ -555,13 +592,14 @@ function home() {
 function buildNav() {
   let h = `<a href="#/" class="${location.hash === "#/" || !location.hash ? "active" : ""}">🏠 Home</a>`, last = "";
   SECS.forEach(s => { if (s.group !== last) { h += `<h6>${s.group}</h6>`; last = s.group; } const done = S.done["quiz:" + s.id] || (S.ex[(SEC_EX(s.id, "boss")[0] || {}).id] || {}).solved || S.done["final:" + s.id] || (s.lessons && s.lessons.every(l => S.done["lesson:" + l.id])); h += `<a href="#/${s.id}" class="${location.hash === "#/" + s.id ? "active" : ""}">${s.icon} ${s.title}<span class="tick">${done ? "✓" : ""}</span></a>`; });
-  h += `<h6>Challenge</h6><a href="#/boss" class="${location.hash === "#/boss" ? "active" : ""}">👹 Exam Boss<span class="tick">${(S.ex["exam-boss"] || {}).solved ? "✓" : ""}</span></a><a href="#/progress" class="${location.hash === "#/progress" ? "active" : ""}">📊 My progress</a>`;
+  h += `<h6>Challenge</h6><a href="#/boss" class="${location.hash === "#/boss" ? "active" : ""}">👹 Exam Boss<span class="tick">${(S.ex["exam-boss"] || {}).solved ? "✓" : ""}</span></a><a href="#/progress" class="${location.hash === "#/progress" ? "active" : ""}">📊 My progress</a>` + FX.navExtra();
   $("#nav").innerHTML = h;
 }
 function route() {
-  document.body.classList.remove("nav-open");
-  const id = (location.hash.match(/^#\/(.+)$/) || [])[1], s = BYID[id];
-  $("#main").innerHTML = s ? section(s) : id === "progress" ? progressPage() : id === "boss" ? bossPage() : home(); buildNav(); fitAll($("#main")); window.scrollTo(0, 0); document.title = (s ? s.title + " · " : id === "progress" ? "My progress · " : id === "boss" ? "Exam Boss · " : "") + "DSC500 Practice Lab";
+  FX.leave(); document.body.classList.remove("nav-open");
+  const id = (location.hash.match(/^#\/(.+)$/) || [])[1], s = BYID[id], fp = FX.pages[id];
+  $("#main").innerHTML = s ? section(s) : fp ? fp.html() : id === "progress" ? progressPage() : id === "boss" ? bossPage() : home(); buildNav(); fitAll($("#main")); window.scrollTo(0, 0);
+  document.title = (s ? s.title + " · " : fp ? fp.title + " · " : id === "progress" ? "My progress · " : id === "boss" ? "Exam Boss · " : "") + "DSC500 Practice Lab"; FX.enter(id);
 }
 $("#menuBtn").addEventListener("click", () => document.body.classList.toggle("nav-open"));
 $("#scrim").addEventListener("click", () => document.body.classList.remove("nav-open"));
@@ -594,8 +632,324 @@ document.addEventListener("click", async e => {
   else if (a === "preload") { const m = $("#preMsg"); m.innerHTML = '<div class="loading"><div class="spin"></div><span id="pm">Loading…</span></div>'; try { await PY.loadPkgs(["numpy", "pandas", "matplotlib", "scikit-learn", "beautifulsoup4"], t => { const x = $("#pm"); if (x) x.textContent = t; }); m.innerHTML = "✅ Everything is loaded and cached."; } catch (err) { m.textContent = "⚠️ " + err.message; } }
   else if (a === "resetprog") { if (confirm("Reset XP, streak and completed lessons?")) { try { localStorage.removeItem(KEY1); } catch (e) {} const e0 = S.edits, t0 = S.editTs; S = blank(); S.edits = e0; S.editTs = t0; save(); writeNow(); chips(); route(); } }
 });
+/* ===== v3 · part 1: skip/peek tracking, shared answer parts, Theory Prep, worked probability ===== */
+const TH = TD.th || [], THX = Object.fromEntries(TH.map(e => [e.id, e])), PPS = TD.pp || [], PPX = Object.fromEntries(PPS.map(p => [p.id, p]));
+const nowMs = () => Date.now();
+const lvKey = l => (l === "final" ? "boss" : l);
+function xs(id, total) { const o = S.ex[id] || (S.ex[id] = { best: 0, total: total || 0, solved: false, fails: 0, tries: 0, hints: 0, ts: 0 }); if (total && !o.total) o.total = total; return o; }
+const stOf = id => TEX[id] ? exState(id) : xs(id, (THX[id] || PPX[id] || {}).marks || (PPX[id] || {}).total);
+
+/* ---------- skip / peek tracking ---------- */
+const TR = { cur: null, last: 0 };
+function trkTouch(id) {
+  const t = nowMs(), st = stOf(id);
+  if (TR.cur !== id) { trkLeave(); TR.cur = id; st.opens = (st.opens || 0) + 1; }
+  else st.time = (st.time || 0) + Math.min(t - TR.last, 60000);
+  TR.last = t; st.lastOpen = t; save();
+}
+function trkLeave() {
+  if (!TR.cur) return; const st = S.ex[TR.cur];
+  if (st && !st.solved) { st.skips = (st.skips || 0) + 1; st.skipped = true; save(); }
+  TR.cur = null;
+}
+FX.leave = trkLeave; FX.hint = id => { const st = stOf(id); st.hintUsed = true; trkTouch(id); };
+FX.peek = id => { const st = stOf(id); if (!st.solved) { st.peeks = (st.peeks || 0) + 1; st.peeked = true; } trkTouch(id); };
+FX.solved = id => { const st = stOf(id); st.skipped = false; if (st.peeked) st.afterPeek = true; st.solvedAt = nowMs(); };
+document.addEventListener("focusin", e => { const c = e.target.closest && e.target.closest("[data-ex],[data-thx],[data-ppx]"); if (c) trkTouch(c.dataset.ex || c.dataset.thx || c.dataset.ppx); });
+document.addEventListener("click", e => { const c = e.target.closest && e.target.closest("[data-ex],[data-thx],[data-ppx]"); if (c && !e.target.closest("[data-act=tdlevel],[data-act=tdpick]")) trkTouch(c.dataset.ex || c.dataset.thx || c.dataset.ppx);
+  if (e.target.closest && e.target.closest("[data-act=tdlevel],[data-act=tdpick]")) setTimeout(() => { const c2 = $("#tdHost .ex[data-ex]"); if (c2) trkTouch(c2.dataset.ex); }, 0); });
+window.addEventListener("pagehide", trkLeave);
+
+/* ---------- where is an exercise? (weak spots, links) ---------- */
+function infoOf(id) {
+  if (TEX[id]) { const e = TEX[id]; return { id, title: e.title.replace(/^🏆 |^👹 /, ""), sec: e.sec === "examboss" ? "boss" : e.sec, name: e.sec === "examboss" ? "👹 Exam Boss" : SEC_NAMES[e.sec], level: e.level, kind: "code" }; }
+  if (THX[id]) { const e = THX[id]; return { id, title: e.title, sec: "theory", name: "🧠 Theory Prep", level: e.level, kind: "th" }; }
+  if (PPX[id]) { const p = PPX[id]; return { id, title: p.title, sec: "probability", name: SEC_NAMES.probability, level: p.level, kind: "pp" }; }
+  return null;
+}
+function goTo(id) {
+  const i = infoOf(id); if (!i) return;
+  if (i.kind === "code" && i.sec !== "boss") { if (i.level === "boss") S.ui._scroll = "#bossBlock"; else { const list = SEC_EX(i.sec, i.level); S.ui[i.sec] = { lv: i.level, i: Math.max(0, list.findIndex(x => x.id === id)) }; S.ui._scroll = "#tdBlock"; } }
+  else if (i.kind === "th") { S.ui.theory = { lv: i.level === "boss" ? "final" : i.level, id }; S.ui._scroll = "#thHost"; }
+  else if (i.kind === "pp") { const lv = i.level; S.ui.pp = { lv, id }; S.ui._scroll = "#ppBlock"; }
+  save(); const target = i.kind === "code" && i.sec === "boss" ? "#/boss" : "#/" + i.sec;
+  if (location.hash === target) route(); else location.hash = target;
+}
+FX.enter = id => { const sel = S.ui._scroll; if (sel) { delete S.ui._scroll; setTimeout(() => { const el = $(sel); if (el) el.scrollIntoView({ block: "start", behavior: "smooth" }); }, 60); } if (FX.after) FX.after(id); };
+function weakList() {
+  const all = [...TD.ex.map(e => e.id), ...TH.map(e => e.id), ...PPS.map(p => p.id)], out = [];
+  all.forEach(id => {
+    const st = S.ex[id]; if (!st) return; const why = []; let sc = 0;
+    if (st.skipped && !st.solved) { why.push("skipped (opened, left without a pass)"); sc += 3; }
+    if (st.peeked && !st.solved) { why.push("looked at the solution, not solved yet"); sc += 3; }
+    if (st.afterPeek) { why.push("solved only after seeing the solution"); sc += 2; }
+    if (!st.solved && (st.fails || 0) >= 3) { why.push((st.fails) + " failed checks"); sc += 2; }
+    if (!st.solved && (st.tries || 0) > 0 && !why.length) { why.push("attempted, not solved yet"); sc += 1; }
+    if (why.length) out.push(Object.assign(infoOf(id), { why, sc, st }));
+  });
+  return out.sort((a, b) => b.sc - a.sc || (b.st.lastOpen || 0) - (a.st.lastOpen || 0));
+}
+function nextBest() {  // the buddy's suggestion: weakest spot first, otherwise the first unsolved exercise in a sensible order
+  const w = weakList(); if (w.length) return w[0];
+  const order = ["th-pr-e", "th-pr-m", "th-cs-e", "th-ml-e", "th-ch-e", "th-vz-e"];
+  const lvOrder = ["easy", "medium", "hard", "boss"];
+  for (const lv of lvOrder) {
+    const cand = [...TH.filter(e => e.level === lv), ...PPS.filter(p => p.level === (lv === "boss" ? "final" : lv)), ...TD.ex.filter(e => e.level === lv && e.sec !== "examboss")].find(e => !(S.ex[e.id] || {}).solved);
+    if (cand) return infoOf(cand.id);
+  }
+  return null;
+}
+const lvName = l => ({ easy: "Easy", medium: "Medium", hard: "Hard", boss: "Final Challenge", final: "Final Challenge" })[l] || l;
+function weakCard(max) {
+  const w = weakList(), list = w.slice(0, max || 12);
+  if (!w.length) return `<div class="card"><h4>🎯 Weak spots / skipped</h4><p class="muted" style="margin:0">Nothing flagged yet. When you skip an exercise, peek at a solution or fail a few checks, it shows up here with a link to go back.</p></div>`;
+  return `<div class="card"><h4>🎯 Weak spots / skipped <small class="muted">(${w.length})</small></h4><ul class="weak">${list.map(i => `<li><a href="#/${i.kind === "code" && i.sec === "boss" ? "boss" : i.sec}" data-fx="go" data-id="${i.id}"><b>${esc(i.title)}</b></a><span class="muted"> · ${i.name} · ${lvName(i.level)}</span><br><small>${i.why.map(esc).join(" · ")}</small></li>`).join("")}</ul>${w.length > list.length ? `<p class="muted" style="margin:6px 0 0">…and ${w.length - list.length} more.</p>` : ""}</div>`;
+}
+
+/* ---------- shared answer parts: order / pairs / mcq / typed (Theory Prep + exam) ---------- */
+const hashStr = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+function shuffled(n, seed) { const a = [...Array(n).keys()]; let r = hashStr(seed) || 1; for (let i = n - 1; i > 0; i--) { r = (Math.imul(r, 1664525) + 1013904223) >>> 0; const j = r % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } if (a.every((v, k) => v === k)) a.reverse(); return a; }
+const ANS = { get: (store, key) => { const v = store[key]; return v == null ? null : v; }, set: null };
+function normTxt(s) { return " " + String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + " "; }
+function kwHit(t, kw) { kw = String(kw).replace(/^\^/, ""); const anywhere = kw[0] === "*"; if (anywhere) kw = kw.slice(1); const k = normTxt(kw).trim(); if (!k) return false; return anywhere ? t.includes(k) : t.includes(" " + k); }
+function rubricHits(p, text) { const t = normTxt(text); return p.rubric.map(r => r.k.every(g => g.some(kw => kwHit(t, kw)))); }
+function parseAns(p, raw) {
+  if (p.t === "typed") return raw == null ? "" : String(raw);
+  try { return raw == null ? null : JSON.parse(raw); } catch (e) { return null; }
+}
+function gradePart(p, raw) {
+  const a = parseAns(p, raw), max = p.marks; let earned = 0, ok = false, items = null;
+  if (p.t === "mcq") { ok = a === p.ans; earned = ok ? max : 0; }
+  else if (p.t === "order") { const seq = Array.isArray(a) ? a : []; const c = seq.filter((k, i) => k === i).length; ok = seq.length === p.items.length && c === p.items.length; earned = Math.round(max * c / p.items.length * 100) / 100; items = seq.length === p.items.length ? seq.map((k, i) => k === i) : null; }
+  else if (p.t === "pairs") { const arr = Array.isArray(a) ? a : []; items = p.left.map((_, i) => arr[i] === p.ans[i]); const c = items.filter(Boolean).length; ok = c === p.left.length; earned = max * c / p.left.length; }
+  else if (p.t === "typed") { const hits = rubricHits(p, a); items = hits; earned = p.rubric.reduce((s, r, i) => s + (hits[i] ? r.m : 0), 0); ok = earned / max >= 0.7; }
+  return { earned, max, ok, items };
+}
+function partHTML(p, key, res, o) {
+  o = o || {}; const raw = S.edits[key], a = parseAns(p, raw), dis = o.dis ? "disabled" : "";
+  let h = `<div class="q">${p.q}</div>`;
+  if (p.t === "mcq") h += p.choices.map((c, k) => `<button type="button" class="choice ${a === k ? "sel" : ""} ${res ? (k === p.ans ? "ok" : a === k ? "no" : "") : ""}" data-fx="mcq" data-key="${key}" data-k="${k}" ${dis}>${esc(c)}</button>`).join("");
+  else if (p.t === "pairs") h += `<div class="pairs">` + p.left.map((l, i) => `<div class="pr ${res && res.items ? (res.items[i] ? "ok" : "no") : ""}"><span>${esc(l)}</span><select data-fx="sel" data-key="${key}" data-i="${i}" ${dis} aria-label="${esc(l)}"><option value="">choose…</option>${p.options.map((op, k) => `<option value="${k}" ${Array.isArray(a) && a[i] === k ? "selected" : ""}>${esc(op)}</option>`).join("")}</select>${res && res.items ? (res.items[i] ? "✅" : "❌") : ""}</div>`).join("") + `</div>`;
+  else if (p.t === "order") {
+    const seq = Array.isArray(a) ? a : [], pool = shuffled(p.items.length, key).filter(k => !seq.includes(k));
+    h += `<div class="muted">Tap the steps in the right order. Tap a placed step to take it back.</div><div class="slots">${seq.map((k, i) => `<button type="button" class="chipo in ${res && res.items ? (res.items[i] ? "ok" : "no") : ""}" data-fx="ounplace" data-key="${key}" data-k="${k}" ${dis}>${i + 1}. ${esc(p.items[k])}</button>`).join("") || '<span class="muted">(empty)</span>'}</div><div class="chips-o">${pool.map(k => `<button type="button" class="chipo" data-fx="oplace" data-key="${key}" data-k="${k}" ${dis}>${esc(p.items[k])}</button>`).join("")}</div>`;
+  } else if (p.t === "typed") h += `<textarea class="tx" data-key="${key}" rows="${p.rows || 6}" autocapitalize="sentences" autocorrect="off" spellcheck="false" placeholder="Write your answer here (it saves as you type)…" aria-label="Your answer" ${dis}>${esc(raw || "")}</textarea><div class="muted tcount"></div>`;
+  if (res) h += partFeedback(p, res, o);
+  return h;
+}
+function partFeedback(p, res, o) {
+  let h = `<div class="fb ${res.ok ? "ok" : "no"}"><b>${res.ok ? "✅" : "❌"} ${+res.earned.toFixed(2)} / ${res.max} mark${res.max === 1 ? "" : "s"}</b>`;
+  if (p.t === "mcq" && p.why && (res.ok || o.reveal)) h += `<br>${p.why}`;
+  if (p.t === "typed" && res.items) {
+    const show = o.labels !== false; h += `<ul class="tdres">${p.rubric.map((r, i) => res.items[i] ? `<li class="ok">✅ ${esc(r.l)} <small>(${r.m})</small></li>` : `<li class="no">❌ ${show ? esc(r.l) : "one more point is missing"} <small>(${r.m})</small></li>`).join("")}</ul><div class="muted">Needs 70% to count as passed. Marking by keywords is approximate: compare with the model answer.</div>`;
+  }
+  return h + "</div>";
+}
+function modelHTML(e) {
+  return e.parts.map(p => { let h = `<div class="out-h">MODEL ANSWER</div>`;
+    if (p.t === "mcq") h += `<pre class="out" style="white-space:pre-wrap">${esc(p.choices[p.ans])}</pre>`;
+    else if (p.t === "order") h += `<ol>${p.items.map(x => `<li>${esc(x)}</li>`).join("")}</ol>`;
+    else if (p.t === "pairs") h += `<ul>${p.left.map((l, i) => `<li>${esc(l)} → <b>${esc(p.options[p.ans[i]])}</b></li>`).join("")}</ul>`;
+    else h += `<pre class="out" style="white-space:pre-wrap">${esc(p.model)}</pre>`; return h; }).join("");
+}
+function setAns(key, val, typed) { S.edits[key] = typed ? val : JSON.stringify(val); S.editTs[key] = nowMs(); save(); }
+function rerenderPart(el) {  // el = .tpart container
+  const card = el.closest("[data-thx],[data-exm]"), id = card.dataset.thx || card.dataset.exm, pi = +el.dataset.pi, e = card.dataset.thx ? THX[id] : null; const p = e ? e.parts[pi] : FX.examPart(id, pi);
+  el.innerHTML = partHTML(p, el.dataset.key, null, { dis: false }); if (e) { const w = TW[id]; if (w) delete w[pi]; }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-fx]"); if (!b) return; const f = b.dataset.fx, key = b.dataset.key, host = b.closest(".tpart");
+  if (f === "mcq") { if (FX.fxBlocked && FX.fxBlocked()) return; setAns(key, +b.dataset.k); rerenderPart(host); }
+  else if (f === "oplace" || f === "ounplace") { let a = parseAns({ t: "order" }, S.edits[key]) || []; const k = +b.dataset.k; a = f === "oplace" ? [...a, k] : a.filter(x => x !== k); setAns(key, a); rerenderPart(host); }
+});
+document.addEventListener("change", e => { const s = e.target; if (s.dataset && s.dataset.fx === "sel") { const key = s.dataset.key; let a = parseAns({ t: "pairs" }, S.edits[key]) || []; a = Array.isArray(a) ? a : []; a[+s.dataset.i] = s.value === "" ? null : +s.value; setAns(key, a); const host = s.closest(".tpart"); const card = host.closest("[data-thx]"); if (card && TW[card.dataset.thx]) delete TW[card.dataset.thx][+host.dataset.pi]; } });
+document.addEventListener("input", e => { const t = e.target; if (t.matches && t.matches("textarea.tx")) { setAns(t.dataset.key, t.value, true); const c = t.nextElementSibling; if (c && c.classList.contains("tcount")) c.textContent = t.value.trim() ? t.value.trim().split(/\s+/).length + " words" : ""; const card = t.closest("[data-thx]"); if (card) trkTouch(card.dataset.thx); } });
+
+/* ---------- Theory Prep page ---------- */
+const TW = {};  // last check results (in memory)
+const TH_LV = [["easy", "🟢 Easy"], ["medium", "🟡 Medium"], ["hard", "🔴 Hard"], ["final", "🏆 Final"]];
+const thList = lv => TH.filter(e => e.level === lvKey(lv));
+const thSolved = lv => thList(lv).filter(e => (S.ex[e.id] || {}).solved).length;
+const topicName = t => (TD.topics.find(x => x[0] === t) || [0, t === "final" ? "🏆 Everything together" : t])[1];
+function thCard(e) {
+  const L = LV[e.level], st = xs(e.id, e.marks), res = TW[e.id], hintOpen = st.fails >= L.hintFails, solOpen = st.solved || st.fails >= L.solFails;
+  const earned = res ? res.reduce((s, r) => s + (r ? r.earned : 0), 0) : null;
+  return `<div class="ex todo ${e.level === "boss" ? "boss" : e.level}" data-thx="${e.id}"><div class="hd">${L.ico} ${esc(e.title)}<small>${e.marks} marks · +${L.xp} XP</small></div><div class="bd">
+  <p class="muted" style="margin-top:0">${topicName(e.topic)} · ${e.intro}</p>
+  ${e.parts.map((p, pi) => `<div class="tpart" data-pi="${pi}" data-key="th:${e.id}:${pi}">${partHTML(p, `th:${e.id}:${pi}`, res && res[pi], { labels: e.level !== "hard" || st.fails >= 2 || st.solved })}</div>`).join("")}
+  <div class="row"><button type="button" data-fx="thcheck">✅ Check my answers</button><button type="button" class="sec" data-fx="thhint" ${hintOpen ? "" : "disabled"}>💡 Hint <span class="hn">${st.hints}/${e.hints.length}</span></button></div>
+  <div class="row"><button type="button" class="sec" data-fx="thsol" ${solOpen ? "" : "disabled"}>${solOpen ? "👀 Model answer" : "🔒 Model answer"}</button><button type="button" class="sec" data-fx="threset">↺ Start over</button></div>
+  <div class="lockmsg muted">${hintOpen ? (solOpen ? "" : "🔒 The model answer unlocks after " + L.solFails + " failed Check" + (L.solFails > 1 ? "s" : "") + ".") : "💡 Hints unlock after one failed Check. Have a go first!"}</div>
+  <div class="hints">${e.hints.slice(0, st.hints).map((h, i) => `<div class="fb info"><b>Hint ${i + 1}:</b> ${h}</div>`).join("")}</div>
+  <div class="grade">${earned != null ? `<div class="fb ${res.every(r => r.ok) ? "ok" : "no"}"><b>${res.every(r => r.ok) ? "🎉 All parts passed!" : "Not yet."}</b> Score: ${+earned.toFixed(2)} / ${e.marks} marks.</div>` : st.solved ? `<div class="fb ok"><b>✅ Solved</b> before (best ${+(st.best || 0).toFixed(2)}/${e.marks} marks).</div>` : (st.tries ? `<div class="fb info">Best so far: ${+(st.best || 0).toFixed(2)} of ${e.marks} marks.</div>` : "")}</div>
+  <div class="solbox"></div></div></div>`;
+}
+function theoryPage() {
+  const ui = S.ui.theory || (S.ui.theory = {}); const first = TH_LV.find(l => thSolved(l[0]) < thList(l[0]).length) || TH_LV[0];
+  const lv = TH_LV.some(l => l[0] === ui.lv) ? ui.lv : first[0], list = thList(lv);
+  const cur = list.find(e => e.id === ui.id) || list.find(e => !(S.ex[e.id] || {}).solved) || list[0]; ui.lv = lv; ui.id = cur.id;
+  return `<h1>🧠 Theory Prep</h1><span class="scope">The written paper: process · case study · ML types · choosing a type · charts</span>
+  <div class="note"><b>Like SoloLearn and Brilliant, but for the theory questions.</b> <b>Easy</b> = tap and match, <b>Medium</b> = apply it to a scenario, <b>Hard</b> = type the exam answer yourself (checked against keywords, then compare with the model answer). Keywords to remember: <b>labelled</b> = supervised · <b>groups / no labels</b> = unsupervised · <b>rewards</b> = reinforcement.</div>
+  <div class="card" id="thBlock"><div class="lvtabs">${TH_LV.map(l => `<button type="button" class="lvtab ${l[0] === "final" ? "boss" : l[0]} ${l[0] === lv ? "on" : ""}" data-fx="thlevel" data-lv="${l[0]}">${l[1]}<span>${thSolved(l[0])}/${thList(l[0]).length}</span></button>`).join("")}</div>
+  <div class="thlist">${list.map(e => { const s2 = S.ex[e.id] || {}; return `<button type="button" class="throw ${e.id === cur.id ? "on" : ""} ${s2.solved ? "ok" : ""}" data-fx="thpick" data-id="${e.id}"><span>${s2.solved ? "✅" : "▫️"}</span><span><b>${esc(topicName(e.topic))}</b><small>${esc(e.title)} · ${e.marks} marks</small></span></button>`; }).join("")}</div>
+  <div id="thHost">${thCard(cur)}</div></div><div class="pager"><a href="#/progress">📊 My progress</a><a href="#/">🏠 Home</a></div>`;
+}
+FX.pages.theory = { html: theoryPage, title: "Theory Prep" };
+function thRefresh(host) { const id = host.dataset.thx; host.outerHTML = thCard(THX[id]); buildNav(); }
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-fx]"); if (!b) return; const f = b.dataset.fx;
+  if (f === "go") { goTo(b.dataset.id); e.preventDefault(); return; }
+  if (f === "thlevel") { const ui = S.ui.theory; ui.lv = b.dataset.lv; ui.id = null; save(); $("#main").innerHTML = theoryPage(); fitAll($("#main")); return; }
+  if (f === "thpick") { S.ui.theory.id = b.dataset.id; save(); $("#main").innerHTML = theoryPage(); trkTouch(b.dataset.id); $("#thHost").scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
+  const host = b.closest("[data-thx]"); if (!host) return; const ex = THX[host.dataset.thx];
+  if (f === "thhint") { if (FX.locked("hint")) return; const st = xs(ex.id, ex.marks); if (st.hints < ex.hints.length) { FX.hint(ex.id); st.hints++; save(); thRefresh(host); } return; }
+  if (f === "thsol") { if (FX.locked("solution")) return; const sb = $(".solbox", host); if (sb.innerHTML.trim()) { sb.innerHTML = ""; return; } FX.peek(ex.id); sb.innerHTML = modelHTML(ex); return; }
+  if (f === "threset") { if (!confirm("Start this exercise over? Your answers here are cleared.")) return; ex.parts.forEach((p, pi) => { delete S.edits[`th:${ex.id}:${pi}`]; }); const st = xs(ex.id, ex.marks); Object.assign(st, { solved: false, best: 0, fails: 0, hints: 0, tries: 0 }); delete TW[ex.id]; save(); thRefresh(host); return; }
+  if (f === "thcheck") {
+    if (FX.locked("check")) return; const st = xs(ex.id, ex.marks), L = LV[ex.level];
+    const res = ex.parts.map((p, pi) => gradePart(p, S.edits[`th:${ex.id}:${pi}`])), earned = res.reduce((s, r) => s + r.earned, 0), all = res.every(r => r.ok);
+    const blank = ex.parts.every((p, pi) => { const r = S.edits[`th:${ex.id}:${pi}`]; return r == null || r === "" || r === "[]" || r === "null"; });
+    if (blank) { const g = $(".grade", host); g.innerHTML = `<div class="fb info">Answer at least one part first, then press Check.</div>`; return; }
+    TW[ex.id] = res; st.tries++; st.ts = nowMs(); st.best = Math.max(st.best || 0, earned); st.total = ex.marks;
+    if (all) { if (!st.solved) { st.solved = true; FX.solved(ex.id); addXP(L.xp); } right(); } else { st.fails++; wrong(); }
+    save(); thRefresh(host); const nh = $(`[data-thx="${ex.id}"]`); if (nh) nh.scrollIntoView({ block: "nearest" }); return;
+  }
+});
+document.addEventListener("input", e => {});
+FX.homeExtra = () => `<div class="home-grid"><a href="#/theory"><span style="font-size:26px">🧠</span><span><b>Theory Prep</b><small>process · case study · ML types · choosing · charts, easy / medium / hard</small></span></a></div>`;
+
+/* ---------- worked probability (Brilliant style): keyword → formula → substitute → answer ---------- */
+const PRULE = Object.fromEntries((TD.rules || []).map(r => [r.id, r]));
+function canonF(s) {
+  s = String(s || "").toLowerCase().replace(/[−–—]/g, "-").replace(/[×·⋅∙]/g, "*").replace(/÷/g, "/").replace(/∣/g, "|").replace(/∧/g, "∩").replace(/∨/g, "∪").replace(/[’`´]/g, "'").replace(/≈/g, "=")
+    .replace(/[₀-₉]/g, c => String(c.charCodeAt(0) - 8320)).replace(/\bnot\s+/g, "¬").replace(/\bgiven\b/g, "|").replace(/\band\b/g, "∩").replace(/\bor\b/g, "∪").replace(/[~!]/g, "¬").replace(/\s+/g, "").replace(/[?.]+$/, "");
+  s = s.replace(/([a-z0-9_]+)'/g, "¬$1").replace(/([a-z0-9_]+)\^c/g, "¬$1").replace(/\)x(?=p\()/g, ")*").replace(/\)(?=p\()/g, ")*").replace(/(\d)x(\d)/g, "$1*$2");
+  return s;
+}
+function absF(s) {  // rename the event names (A, B, R1, red…) to a, b, c… by first appearance
+  const map = {}; let n = 0; const nm = x => map[x] || (map[x] = String.fromCharCode(97 + n++));
+  return canonF(s).replace(/p\(([^()]*)\)/g, (m, inner) => "p(" + inner.replace(/(¬?)([^∩∪|¬]+)/g, (mm, neg, name) => neg + nm(name)) + ")");
+}
+const FORMSET = {}; (TD.rules || []).forEach(r => { FORMSET[r.id] = new Set(r.forms.map(absF)); });
+function formulaWhich(txt) { const a = absF(txt); return Object.keys(FORMSET).filter(k => FORMSET[k].has(a)); }
+function checkFormula(p, txt) {
+  const c = canonF(txt); if (!c.includes("=")) return { ok: false, why: "A formula needs an equals sign, e.g. P(A ∩ B) = …" };
+  if (p.fuzzy) { const [l, ...r] = c.split("="), rr = r.join("="); const okL = /^(p\(.*\)|.*(probability|frequency).*|p|prob)$/.test(l), den = (rr.split("/")[1] || ""); const okR = rr.includes("/") && /(trial|total|outcome|sample|n|all|number|count|space|bag|die|card|times|ways|\d)/.test(den); return okL && okR ? { ok: true } : { ok: false, why: "Write it as P(A) = (favourable outcomes or times it happened) / (total outcomes or trials)." }; }
+  const a = absF(txt); if (new Set(p.forms.map(absF)).has(a)) return { ok: true };
+  const other = formulaWhich(txt).filter(k => k !== p.rule); return { ok: false, why: other.length ? `That looks like the formula for <b>${esc(PRULE[other[0]].n)}</b>. Is that the rule you chose?` : "That is not the formula for this rule. Use the formula list above and use P( ), ∩, ∪, | for 'given'." };
+}
+function evalExpr(src) {  // tiny safe calculator: + - * / ^ ( ) with decimals
+  let s = String(src || "").toLowerCase().replace(/[−–]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/").replace(/,/g, "").replace(/\s+/g, "").replace(/(\d)x(\d)/g, "$1*$2").replace(/\*\*/g, "^");
+  s = s.replace(/(\d|\))\(/g, "$1*(").replace(/\)(\d)/g, ")*$1"); if (!/^[0-9.+\-*/^()]+$/.test(s) || !s) return NaN;
+  let i = 0; const peek = () => s[i];
+  function num() { if (peek() === "(") { i++; const v = add(); if (peek() !== ")") throw 0; i++; return v; } const m = /^\d*\.?\d+|^\d+\.?/.exec(s.slice(i)); if (!m) throw 0; i += m[0].length; return parseFloat(m[0]); }
+  function un() { if (peek() === "-") { i++; return -un(); } if (peek() === "+") { i++; return un(); } return pw(); }
+  function pw() { const b = num(); if (peek() === "^") { i++; return Math.pow(b, un()); } return b; }
+  function mul() { let v = un(); while (peek() === "*" || peek() === "/") { const o = s[i++], r = un(); v = o === "*" ? v * r : v / r; } return v; }
+  function add() { let v = mul(); while (peek() === "+" || peek() === "-") { const o = s[i++], r = mul(); v = o === "+" ? v + r : v - r; } return v; }
+  try { const v = add(); return i === s.length ? v : NaN; } catch (e) { return NaN; }
+}
+function checkSub(p, txt) {
+  const t = String(txt || "").trim(); if (!t) return { ok: false, why: "Type the substitution first." };
+  const cand = t.split("=").map(x => x.trim()).filter(Boolean), vals = cand.map(c => ({ c, v: evalExpr(c) })).filter(x => !isNaN(x.v));  // "0.5*0.4 = 0.2": any side with an operator may match
+  if (!vals.length) return { ok: false, why: "I could not read that. Use numbers with + − × ÷ and brackets, e.g. (5/8) × (4/7)." };
+  const withOp = vals.filter(x => /[+\-*/×÷^()]/.test(x.c.replace(/^-/, "")));
+  if (!withOp.length) return { ok: false, why: "Show the substitution (the numbers in the formula), not just a single number." };
+  if (withOp.some(x => Math.abs(x.v - p.subv) <= 0.002)) return { ok: true };
+  const v = withOp[0].v; return { ok: false, why: `Your substitution works out to ${+v.toFixed(4)}, which is not the value this rule gives here. Check which numbers go where.` };
+}
+function parseNumAns(s) { s = String(s || "").trim().replace(/,/g, "").replace(/\s/g, ""); const pc = /%$/.test(s); s = s.replace(/%$/, ""); let v = NaN; if (/^-?[\d.]+\/[\d.]+$/.test(s)) { const [a, b] = s.split("/"); v = parseFloat(a) / parseFloat(b); } else if (s !== "") v = Number(s); if (pc) v /= 100; return v; }
+function checkAns(p, txt) {
+  if (p.kind === "choice") { const k = +txt; return isNaN(k) || txt === "" || txt == null ? { ok: false, why: "Pick an answer." } : k === p.correct ? { ok: true } : { ok: false, why: "Compare the two sides of the independence test again." }; }
+  const v = parseNumAns(txt); if (isNaN(v)) return { ok: false, why: "Type a number or a fraction like 5/14." };
+  return Math.abs(v - p.ans) <= 0.006 ? { ok: true } : { ok: false, why: "That is not the value. Work the substitution out carefully (calculator style)." };
+}
+const PSTEPS = [["rule", "① Which rule? Find the keyword", 0], ["formula", "② Write the formula", 1], ["sub", "③ Substitute the numbers", 2], ["ans", "④ Final answer", 3]];
+function stepCheck(p, k, v) { return k === "rule" ? (v === p.rule ? { ok: true } : { ok: false, why: "Not that rule. Re-read the question for the keyword (or, and, given, at least one, without replacement…)." }) : k === "formula" ? checkFormula(p, v) : k === "sub" ? checkSub(p, v) : checkAns(p, v); }
+const PKEYS = ["¬", "∩", "∪", "|", "(", ")", "×", "÷", "+", "−", "=", "P("];
+function ppState(p) { const st = xs(p.id, p.total); st.steps = st.steps || {}; return st; }
+function ppEarned(p, steps) { return PSTEPS.reduce((s, x, i) => s + ((steps[x[0]] || {}).ok ? p.marks[i] : 0), 0); }
+function stepInput(p, k, val, dis) {
+  const d = dis ? "disabled" : "";
+  if (k === "rule") return `<div class="rulelist">${TD.rules.map(r => `<button type="button" class="choice ${val === r.id ? "sel" : ""}" data-fx="pprule" data-r="${r.id}" ${d}>${esc(r.n)}${p.level === "easy" && !dis ? `<small class="muted"><br>keyword: ${esc(r.kw)}</small>` : ""}</button>`).join("")}</div>`;
+  if (k === "ans" && p.kind === "choice") return p.choices.map((c, i) => `<button type="button" class="choice ${String(val) === String(i) ? "sel" : ""}" data-fx="ppchoice" data-k="${i}" ${d}>${esc(c)}</button>`).join("");
+  const keys = k === "ans" ? "" : `<div class="sym pk">${PKEYS.filter(x => k === "formula" || !/[¬∩∪|=]|P\(/.test(x)).map(x => `<button type="button" class="symb" data-fx="ppkey" data-s="${x}" aria-label="insert ${x}" ${d}>${x}</button>`).join("")}</div>`;
+  return `<input class="ans pin" data-fx="ppin" inputmode="${k === "ans" ? "decimal" : "text"}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(val == null ? "" : val)}" placeholder="${k === "formula" ? "e.g. P(A ∩ B) = P(A) × P(B)" : k === "sub" ? "e.g. 0.5 × 0.4" : "e.g. 5/14 or 0.357"}" ${d}>${keys}`;
+}
+function ppCard(p) {
+  const st = ppState(p), L = LV[lvKey(p.level)], steps = st.steps; let cur = PSTEPS.findIndex(x => !((steps[x[0]] || {}).ok || (steps[x[0]] || {}).rev)); const done = cur < 0; if (done) cur = 4;
+  const earned = ppEarned(p, steps);
+  let h = `<div class="ex todo ${lvKey(p.level)} pp" data-ppx="${p.id}"><div class="hd">${L.ico} ${esc(p.title)}<small>${p.total} marks · +${L.xp} XP</small></div><div class="bd"><div class="q" style="margin-top:0">${p.q}</div>${vis(p.vis)}
+  <details class="rev"><summary>📋 Formula list (like the exam sheet)</summary><ul class="flist">${TD.rules.map(r => `<li><b>${esc(r.n)}</b><br><span class="rule">${esc(r.f)}</span><br><small class="muted">keyword: ${esc(r.kw)}</small></li>`).join("")}</ul></details>
+  <div class="pbar"><i style="width:${Math.round(earned / p.total * 100)}%"></i></div><div class="muted">Marks so far: <b>${earned}</b> / ${p.total} (1 mark per skill, like Q3.1 in the 2025 paper)</div>`;
+  PSTEPS.forEach(([k, name, i], idx) => {
+    if (idx > cur) { h += `<div class="pstep lock"><b>${name}</b> <small class="muted">· ${p.marks[i]} mark${p.marks[i] > 1 ? "s" : ""} · 🔒</small></div>`; return; }
+    const s = steps[k] || {}, fin = s.ok || s.rev, hintOk = (s.att || 0) >= L.hintFails, hn = s.hn || 0;
+    h += `<div class="pstep ${s.ok ? "ok" : s.rev ? "rev" : "active"}" data-k="${k}"><b>${name}</b> <small class="muted">· ${p.marks[i]} mark${p.marks[i] > 1 ? "s" : ""}</small>`;
+    h += stepInput(p, k, k === "rule" || k === "ans" && p.kind === "choice" ? (s.v != null ? s.v : null) : s.v, fin);
+    if (fin) h += `<div class="fb ${s.ok ? "ok" : "info"}">${s.ok ? "✅ Correct, +" + p.marks[i] + (p.marks[i] > 1 ? " marks" : " mark") : "👀 Answer shown (no marks): " + shownAns(p, k)}</div>`;
+    else { h += `<div class="row"><button type="button" data-fx="ppchk">✅ Check step</button><button type="button" class="sec" data-fx="pphint" ${hintOk ? "" : "disabled"}>💡 Hint ${hn ? hn + "/1" : ""}</button>${(s.att || 0) >= 2 ? `<button type="button" class="sec" data-fx="pprev">👀 Show this step</button>` : ""}</div>`;
+      if (!hintOk) h += `<div class="lockmsg muted">💡 The hint unlocks after one wrong try.</div>`;
+      if (s.hn) h += `<div class="fb info"><b>Hint:</b> ${p.hints[i]}</div>`;
+      if (s.msg) h += `<div class="fb no">${s.msg}</div>`; }
+    h += `</div>`;
+  });
+  if (done) h += `<div class="fb ${earned === p.total ? "ok" : "info"}"><b>${earned === p.total ? "🎉 Full marks: " : "Finished: "}${earned} / ${p.total}</b>${st.solved ? "" : ""}<ol class="why">${p.why.map(w => `<li>${w}</li>`).join("")}</ol></div><div class="row"><button type="button" class="sec" data-fx="ppreset">↺ Start over</button></div>`;
+  return h + "</div></div>";
+}
+function shownAns(p, k) { return k === "rule" ? esc(PRULE[p.rule].n) : k === "formula" ? esc(p.formula) : k === "sub" ? esc(p.sub) : p.kind === "choice" ? esc(p.choices[p.correct]) : esc(p.ans_show); }
+const PP_LV = [["easy", "🟢 Easy", "one rule"], ["medium", "🟡 Medium", "OR · AND · complement"], ["hard", "🔴 Hard", "no replacement · given · Bayes"], ["final", "🏆 Final", "three mixed"]];
+const ppList = lv => PPS.filter(p => p.level === lv), ppDone = lv => ppList(lv).filter(p => (S.ex[p.id] || {}).solved).length;
+function ppBlock() {
+  const ui = S.ui.pp || (S.ui.pp = {}), first = PP_LV.find(l => ppDone(l[0]) < ppList(l[0]).length) || PP_LV[0], lv = PP_LV.some(l => l[0] === ui.lv) ? ui.lv : first[0], list = ppList(lv);
+  const cur = list.find(p => p.id === ui.id) || list.find(p => !(S.ex[p.id] || {}).solved) || list[0]; ui.lv = lv; ui.id = cur.id;
+  return `<h2>✍️ Show your working (Brilliant style)</h2><div class="card" id="ppBlock"><p class="muted" style="margin-top:0">Exam marking: <b>1 mark per skill</b>. Every problem is checked step by step: find the <b>keyword → rule</b>, write the <b>formula</b>, <b>substitute</b> the numbers, then the <b>final answer</b>. Use the keypad for ∩ ∪ | ×.</p>
+  <div class="lvtabs">${PP_LV.map(l => `<button type="button" class="lvtab ${l[0] === "final" ? "boss" : l[0]} ${l[0] === lv ? "on" : ""}" data-fx="pplevel" data-lv="${l[0]}">${l[1]}<span>${ppDone(l[0])}/${ppList(l[0]).length}</span></button>`).join("")}</div>
+  <div class="pills">${list.map((p, k) => `<button type="button" class="pill ${p.id === cur.id ? "on" : ""} ${(S.ex[p.id] || {}).solved ? "ok" : ""}" data-fx="pppick" data-id="${p.id}" aria-label="Problem ${k + 1}">${(S.ex[p.id] || {}).solved ? "✓" : k + 1}</button>`).join("")}</div>
+  <div id="ppHost">${ppCard(cur)}</div></div>`;
+}
+FX.secExtra = s => s.id === "probability" ? ppBlock() : "";
+function ppRefresh(host) { const id = host.dataset.ppx; host.outerHTML = ppCard(PPX[id]); buildNav(); const blk = $("#ppBlock"); if (blk) { $$(".lvtab", blk).forEach(b => { $("span", b).textContent = ppDone(b.dataset.lv) + "/" + ppList(b.dataset.lv).length; }); $$(".pill", blk).forEach(pb => { const sv = (S.ex[pb.dataset.id] || {}).solved; pb.classList.toggle("ok", !!sv); if (sv) pb.textContent = "✓"; }); } }
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-fx]"); if (!b) return; const f = b.dataset.fx;
+  if (f === "pplevel") { S.ui.pp.lv = b.dataset.lv; S.ui.pp.id = null; save(); $("#ppBlock").outerHTML = ppBlock(); return; }
+  if (f === "pppick") { S.ui.pp.id = b.dataset.id; save(); $("#ppBlock").outerHTML = ppBlock(); trkTouch(b.dataset.id); return; }
+  if (f === "ppkey") { const inp = $(".pin", b.closest(".pstep")); const s = b.dataset.s === "−" ? "-" : b.dataset.s; inp.setRangeText(s, inp.selectionStart, inp.selectionEnd, "end"); inp.focus({ preventScroll: true }); inp.dispatchEvent(new Event("input", { bubbles: true })); return; }
+  const host = b.closest("[data-ppx]"); if (!host || !["pprule", "ppchoice", "ppchk", "pphint", "pprev", "ppreset"].includes(f)) return; const p = PPX[host.dataset.ppx], st = ppState(p), stepEl = b.closest(".pstep"), k = stepEl && stepEl.dataset.k, steps = st.steps;
+  if (f === "pprule" || f === "ppchoice") { const s = steps[k] || (steps[k] = {}); s.v = f === "pprule" ? b.dataset.r : b.dataset.k; save(); $$(".choice", stepEl).forEach(x => x.classList.remove("sel")); b.classList.add("sel"); return; }
+  if (f === "ppreset") { if (!confirm("Start this problem over?")) return; st.steps = {}; Object.assign(st, { solved: false, best: 0, fails: 0, hints: 0, tries: 0 }); save(); ppRefresh(host); return; }
+  const L = LV[lvKey(p.level)], idx = PSTEPS.findIndex(x => x[0] === k), s = steps[k] || (steps[k] = {});
+  if (f === "pphint") { if (FX.locked("hint")) return; FX.hint(p.id); if (!s.hn) { s.hn = 1; st.hints++; } save(); ppRefresh(host); return; }
+  if (f === "pprev") { if (FX.locked("solution")) return; FX.peek(p.id); s.rev = true; save(); finishPP(p, st); ppRefresh(host); return; }
+  if (f === "ppchk") {
+    if (FX.locked("check")) return; if (s.v == null || s.v === "") { s.msg = k === "rule" ? "Pick a rule first." : "Type your answer first."; ppRefresh(host); return; }
+    const r = stepCheck(p, k, s.v); s.att = (s.att || 0) + 1; st.tries++; st.ts = nowMs();
+    if (r.ok) { s.ok = true; s.msg = ""; right(); } else { s.msg = r.why; st.fails++; wrong(); }
+    st.best = Math.max(st.best || 0, ppEarned(p, steps)); finishPP(p, st); save(); ppRefresh(host);
+  }
+});
+function finishPP(p, st) {
+  const steps = st.steps; if (PSTEPS.every(x => (steps[x[0]] || {}).ok) && !st.solved) { st.solved = true; FX.solved(p.id); addXP(LV[lvKey(p.level)].xp); }
+}
+document.addEventListener("input", e => { const t = e.target; if (t.dataset && t.dataset.fx === "ppin") { const st2 = t.closest(".pstep"), host = t.closest("[data-ppx]"), p = PPX[host.dataset.ppx], s = ppState(p).steps[st2.dataset.k] || (ppState(p).steps[st2.dataset.k] = {}); s.v = t.value; save(); } });
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset && e.target.dataset.fx === "ppin") { const b = $('[data-fx=ppchk]', e.target.closest(".pstep")); if (b) b.click(); } });
+
+/* ===== v3 · part 2: nav, progress extras ===== */
+FX.navExtra = () => `<h6>Theory &amp; exam</h6><a href="#/theory" class="${location.hash === "#/theory" ? "active" : ""}">🧠 Theory Prep<span class="tick">${S.done["final:th"] || (S.ex["th-final"] || {}).solved ? "✓" : ""}</span></a><a href="#/exam" class="${location.hash === "#/exam" ? "active" : ""}">⏱ Exam mode</a><a href="#/resources" class="${location.hash === "#/resources" ? "active" : ""}">📚 Resources</a><a href="#/files" class="${location.hash === "#/files" ? "active" : ""}">🗂 My files</a>`;
+FX.progressExtra = () => {
+  const thRows = TH_LV.map(l => `<td>${thSolved(l[0])}/${thList(l[0]).length}</td>`).join(""), ppRows = PP_LV.map(l => `<td>${ppDone(l[0])}/${ppList(l[0]).length}</td>`).join("");
+  const sk = Object.entries(S.ex).filter(([k, v]) => v.skipped && !v.solved).length, pk = Object.entries(S.ex).filter(([k, v]) => v.peeked).length, ap = Object.entries(S.ex).filter(([k, v]) => v.afterPeek).length;
+  const tm = Object.values(S.ex).reduce((s, v) => s + (v.time || 0), 0), mins = Math.round(tm / 60000);
+  const hist = (S.exam.hist || []).slice(-3).reverse();
+  return weakCard(12) + `<div class="card"><h4>🔎 Skips and peeks</h4><p class="muted" style="margin:0">Skipped (opened, left unsolved): <b>${sk}</b> · solution looked at: <b>${pk}</b> · solved only after the solution: <b>${ap}</b> · time practising: <b>${mins} min</b></p></div>
+  <div class="card"><h4>🧠 Theory Prep &amp; ✍️ worked probability</h4><table class="t"><tr><th></th><th>Easy</th><th>Med</th><th>Hard</th><th>Final</th></tr><tr><td><a href="#/theory">Theory Prep</a></td>${thRows}</tr><tr><td><a href="#/probability">Show your working</a></td>${ppRows}</tr></table></div>
+  <div class="card"><h4>⏱ Exam mode</h4>${hist.length ? hist.map(h => `<div>${new Date(h.ts).toLocaleString()}: <b>${h.score}/${h.total}</b> in ${Math.round(h.used / 60)} min${h.auto ? " (auto-submitted)" : ""}</div>`).join("") + `<p style="margin:6px 0 0"><a href="#/exam">Open exam mode</a></p>` : `No attempts yet. <a href="#/exam">Start a timed 3-hour mock</a>.`}</div>`;
+};
+window.__V3 = { gradePart, stepCheck, checkFormula, checkSub, checkAns, canonF, absF, evalExpr, weakList, nextBest, TH, PPS, rubricHits, goTo, trkTouch, S: () => S };
+
+
 const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px'); setHH(); window.addEventListener('resize', setHH); window.__PY = PY;
-storageReady.then(() => { chips(); route(); if (location.hash && !$("#main h1")) route(); });
+storageReady.then(() => { chips(); route(); FX.boot.forEach(f => f()); if (location.hash && !$("#main h1")) route(); });
 setTimeout(() => PY.start().catch(() => {}), 600);
 })();
 </script>
