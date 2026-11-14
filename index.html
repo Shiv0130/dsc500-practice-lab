@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#04aa6d">
+<title>DSC500 Practice Lab</title>
+<style>*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;--hh:58px}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f1f3f6;color:#1f2933;line-height:1.5;overflow-x:hidden;font-size:16px;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom)}
+#top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;background:#282a35;color:#fff;padding:6px 10px;padding-top:max(6px,env(safe-area-inset-top));padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+#menuBtn{background:#04aa6d;color:#fff;border:0;border-radius:8px;width:44px;height:44px;font-size:22px;flex:none}
+.brand{color:#fff;text-decoration:none;font-weight:700;font-size:16px;white-space:nowrap}.brand span{color:#04aa6d;font-weight:600}
+.chips{margin-left:auto;display:flex;gap:4px;flex-wrap:nowrap}
+.chip{background:#3a3d4d;border-radius:14px;padding:3px 8px;font-size:12px;white-space:nowrap}.chip.warn{background:#92400e}.chip.ok{background:#047857}
+#scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40}
+#nav{position:fixed;top:0;left:0;bottom:0;width:min(84vw,320px);background:#fff;z-index:50;transform:translateX(-105%);transition:transform .2s;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 0 40px;padding-left:env(safe-area-inset-left);padding-top:max(10px,env(safe-area-inset-top));box-shadow:2px 0 12px rgba(0,0,0,.3)}
+body.nav-open #nav{transform:none}body.nav-open #scrim{display:block}
+#nav h6{margin:14px 14px 4px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#6b7280}
+#nav a{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 14px;color:#1f2933;text-decoration:none;border-left:4px solid transparent;font-size:15px}
+#nav a.active{background:#e7f6ef;border-left-color:#04aa6d;font-weight:600}#nav a .tick{margin-left:auto;color:#04aa6d}
+@media(min-width:960px){#nav{transform:none;box-shadow:none;border-right:1px solid #d9dde3;top:var(--hh);width:290px;padding-top:10px}#menuBtn,#scrim{display:none!important}}
+main{max-width:900px;padding:10px 12px 90px;margin-inline:auto}
+@media(min-width:960px){main{max-width:920px;margin-left:calc(290px + max(16px,(100vw - 290px - 920px)/2));margin-right:16px;padding-top:16px}}
+@media(min-width:1500px){main{max-width:1000px;margin-left:calc(290px + max(16px,(100vw - 290px - 1000px)/2))}body{font-size:17px}}
+h1{font-size:24px;margin:10px 0 4px}h2{font-size:20px;margin:22px 0 8px}h4{margin:0 0 6px;font-size:16px}
+.scope{display:inline-block;background:#e7f6ef;color:#065f46;border-radius:6px;padding:3px 8px;font-size:12.5px;margin-bottom:6px}
+.muted{color:#6b7280;font-size:14.5px}
+.card{background:#fff;border:1px solid #dde1e6;border-radius:12px;padding:12px 14px;margin:10px 0;min-width:0}
+.card ul,.card ol{padding-left:20px;margin:6px 0}.card li{margin:3px 0}
+.note{background:#fff7e6;border-left:5px solid #f59e0b;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:14.5px}
+code{background:#eef0f3;border-radius:4px;padding:1px 4px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;overflow-wrap:anywhere}
+pre.code-demo{background:#282a35;color:#e6e6e6;border-radius:8px;padding:10px;overflow-x:auto;font-size:13px;margin:8px 0;max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
+table.t{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto}table.t th,table.t td{border:1px solid #d6dae0;padding:5px 7px;text-align:left}table.t th{background:#e7f6ef}
+.rule{background:#eef6ff;border-left:4px solid #2563eb;padding:6px 10px;border-radius:6px;font-weight:600;overflow-wrap:anywhere}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.links a{display:inline-flex;align-items:center;min-height:44px;padding:6px 12px;background:#04aa6d;color:#fff;border-radius:22px;text-decoration:none;font-size:14px}
+.links a.alt{background:#fff;color:#04aa6d;border:2px solid #04aa6d}
+button,.btn{font:inherit;min-height:46px;padding:8px 16px;border-radius:8px;border:0;background:#04aa6d;color:#fff;font-weight:600;cursor:pointer;touch-action:manipulation}
+button.sec{background:#e5e7eb;color:#1f2933}button.warn{background:#d97706}button.big{width:100%;min-height:52px;font-size:17px}
+button:disabled{opacity:.5}
+/* W3Schools-style example box */
+.ex{border:1px solid #d6dae0;border-radius:10px;background:#fff;margin:14px 0;overflow:hidden;min-width:0}
+.ex .hd{background:#04aa6d;color:#fff;padding:7px 12px;font-weight:700;font-size:15px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ex .hd small{font-weight:500;opacity:.92;margin-left:auto;font-size:12px;background:rgba(0,0,0,.18);padding:2px 8px;border-radius:10px}
+.ex .bd{padding:10px 12px;font-size:15.5px}
+.ex.bug .hd{background:#dc2626}.ex.tryit .hd{background:#7c3aed}
+textarea.code{display:block;width:100%;background:#f6f8fa;color:#111;border:1px solid #cbd2d9;border-radius:6px;padding:10px;font:16px/1.45 ui-monospace,Menlo,Consolas,monospace;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4;min-height:90px}
+.sym{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+.sym button{min-height:42px;min-width:40px;flex:1 0 12%;padding:0;background:#e5e7eb;color:#111;font:600 18px ui-monospace,Menlo,monospace}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.row>button{flex:1 1 120px}
+pre.out{background:#111827;color:#e5e7eb;border-radius:6px;padding:10px;margin:8px 0 0;font-size:13.5px;overflow-x:auto;max-width:100%;white-space:pre}
+pre.out.err{color:#fecaca;background:#3b0d0d;white-space:pre-wrap;overflow-wrap:anywhere}
+.out-h{font-size:12px;color:#6b7280;margin-top:8px;font-weight:700;letter-spacing:.05em}
+img.plot{max-width:100%;height:auto;display:block;margin:8px 0;border:1px solid #d6dae0;border-radius:6px;background:#fff}
+details.rev{margin:8px 0;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:6px 10px}details.rev summary{min-height:40px;display:flex;align-items:center;font-weight:600}
+details.hint{margin:8px 0;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0 10px}details.hint summary{min-height:44px;display:flex;align-items:center;font-weight:600}
+.pbar{height:10px;background:#e5e7eb;border-radius:6px;overflow:hidden;margin:6px 0}.pbar i{display:block;height:100%;background:#04aa6d;transition:width .3s}
+/* quiz / lesson cards */
+.qcard{background:#fff;border:2px solid #dde1e6;border-radius:16px;padding:14px;margin:10px 0}
+.qcard h3{margin:0 0 6px;font-size:18px}.qcard .q{font-size:17px;font-weight:600;margin:6px 0 10px}
+.choice{display:block;width:100%;text-align:left;background:#fff;color:#1f2933;border:2px solid #cbd2d9;min-height:50px;margin:8px 0;font-weight:500;font-size:16px;overflow-wrap:anywhere}
+.choice.sel{border-color:#2563eb;background:#eff6ff}.choice.ok{border-color:#16a34a;background:#dcfce7}.choice.no{border-color:#dc2626;background:#fee2e2}
+input.ans{width:100%;font-size:18px;padding:12px;border:2px solid #cbd2d9;border-radius:10px;min-height:52px}
+.fb{border-radius:12px;padding:10px 12px;margin:10px 0;font-size:15px}.fb.ok{background:#dcfce7;border:1px solid #16a34a}.fb.no{background:#fee2e2;border:1px solid #dc2626}.fb.info{background:#e0f2fe;border:1px solid #38bdf8}
+.steps{margin:8px 0;padding:0;list-style:none;counter-reset:s}.steps li{counter-increment:s;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px 6px 34px;margin:5px 0;position:relative;animation:pop .25s}
+.steps li:before{content:counter(s);position:absolute;left:8px;top:6px;background:#2563eb;color:#fff;border-radius:50%;width:20px;height:20px;font-size:12px;display:flex;align-items:center;justify-content:center}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.chips-o{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;min-height:52px}
+.chipo{background:#fff;border:2px solid #cbd2d9;border-radius:10px;padding:8px 10px;font:14px ui-monospace,Menlo,monospace;min-height:44px;color:#111;overflow-wrap:anywhere;text-align:left}
+.chipo.in{background:#eff6ff;border-color:#2563eb}
+.slots{background:#f8fafc;border:2px dashed #94a3b8;border-radius:10px;padding:6px;min-height:60px;display:flex;flex-direction:column;gap:6px}
+.vis{margin:8px 0;text-align:center}.vis svg{max-width:100%;height:auto}
+.lessons{display:grid;gap:8px}
+.lessons button{display:flex;align-items:center;gap:10px;text-align:left;background:#fff;color:#1f2933;border:2px solid #d6dae0;min-height:62px;width:100%}
+.lessons button b{display:block}.lessons button span.s{display:block;font-weight:400;color:#6b7280;font-size:13px}.lessons .done{border-color:#16a34a;background:#f0fdf4}
+.loading{display:flex;gap:8px;align-items:center;color:#6b7280;font-size:14px;margin:6px 0}
+.spin{width:18px;height:18px;border:3px solid #d1d5db;border-top-color:#04aa6d;border-radius:50%;animation:sp 1s linear infinite;flex:none}@keyframes sp{to{transform:rotate(360deg)}}
+.pager{display:flex;gap:8px;margin:20px 0}.pager a{flex:1;text-align:center;padding:12px;background:#282a35;color:#fff;border-radius:10px;text-decoration:none;min-height:46px}
+.home-grid{display:grid;grid-template-columns:1fr;gap:8px}.home-grid a{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #d6dae0;border-radius:12px;padding:10px 12px;color:inherit;text-decoration:none;min-height:56px}
+.home-grid a small{display:block;color:#6b7280;font-size:12.5px}
+.oos{background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:14px}
+
+@media(max-width:480px){.brand span{display:none}.chip{padding:3px 6px;font-size:11.5px}#top{gap:6px}}
+#top{overflow:hidden}.chips{min-width:0}
+
+main{padding-bottom:calc(90px + env(safe-area-inset-bottom))}img,svg,pre,table,textarea{max-width:100%}.vis svg{height:auto}pre.out{-webkit-overflow-scrolling:touch}
+@media(max-width:360px){h1{font-size:21px}.card{padding:10px}.links a{font-size:13px}}
+</style>
+</head><body>
+<header id="top">
+  <button id="menuBtn" aria-label="Open topics menu">☰</button>
+  <a href="#/" class="brand">DSC500 <span>Practice Lab</span></a>
+  <div class="chips"><span id="xpChip" class="chip" title="XP">⭐ 0</span><span id="streakChip" class="chip" title="Correct-answer streak">🔥 0</span><span id="pyChip" class="chip warn">⏳ Python</span></div>
+</header>
+<div id="scrim"></div>
+<nav id="nav"></nav>
+<main id="main"><p class="muted" style="padding:20px">Loading…</p></main>
+<script src="content.js"></script><script src="bundle.js"></script><script>/* DSC500 Practice Lab: vanilla JS, Pyodide in the browser. Content comes from content.js */
+(function () {
+"use strict";
+const C = window.CONTENT, SECS = C.sections, BYID = Object.fromEntries(SECS.map(s => [s.id, s]));
+const $ = (s, r) => (r || document).querySelector(s), $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const DATA_FILES = ["books_page1.html", "books_sales.csv", "practice_students.csv", "study.csv", "salary.csv", "sales_data.csv", "student_performance.csv"];
+
+/* ---------- saved progress (localStorage) ---------- */
+const KEY = "dsc500lab.v1";
+let S = { xp: 0, streak: 0, best: 0, done: {}, edits: {} };
+try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+function chips() { $("#xpChip").textContent = "⭐ " + S.xp; $("#streakChip").textContent = "🔥 " + S.streak; }
+function addXP(n) { S.xp += n; save(); chips(); }
+function right() { S.streak++; S.best = Math.max(S.best, S.streak); save(); chips(); }
+function wrong() { S.streak = 0; save(); chips(); }
+
+/* ---------- Python (Pyodide) ---------- */
+const PY = { p: null, boot: null, chain: Promise.resolve(), loaded: new Set() };
+const pyChip = (t, cls) => { const c = $("#pyChip"); c.textContent = t; c.className = "chip " + (cls || ""); };
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("Could not load " + src)); document.head.appendChild(s); }); }
+PY.start = function () {
+  if (PY.boot) return PY.boot;
+  pyChip("⏳ Py", "warn");
+  PY.boot = (async () => {
+    await loadScript("https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js");
+    const p = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.29.5/full/" });
+    for (const f of DATA_FILES) p.FS.writeFile(f, window.DATA[f]);
+    p.FS.writeFile("harness.py", window.HARNESS_PY);
+    p.runPython("import sys, os; sys.path.insert(0, os.getcwd()); import harness");
+    PY.p = p; pyChip("✅ Py", "ok"); return p;
+  })().catch(e => { pyChip("⚠️ Py ↻", "warn"); PY.boot = null; throw e; });
+  return PY.boot;
+};
+const PKG = { numpy: "numpy", pandas: "pandas", matplotlib: "matplotlib", sklearn: "scikit-learn", bs4: "beautifulsoup4" };
+function needed(code) {
+  const out = new Set(); const re = /^\s*(?:from|import)\s+([A-Za-z_0-9]+)/gm; let m;
+  while ((m = re.exec(code))) if (PKG[m[1]]) out.add(PKG[m[1]]);
+  if (/matplotlib/.test(code)) out.add("matplotlib");
+  return [...out];
+}
+PY.loadPkgs = async function (names, cb) {
+  const p = await PY.start(); const todo = names.filter(n => !PY.loaded.has(n));
+  if (todo.length) { await p.loadPackage(todo, { messageCallback: cb, errorCallback: cb }); todo.forEach(n => PY.loaded.add(n)); }
+};
+PY.run = function (code, cb) {
+  const job = PY.chain.then(async () => {
+    cb && cb("Starting Python…"); await PY.start();
+    await PY.loadPkgs(needed(code), t => cb && cb(t));
+    cb && cb("Running…");
+    PY.p.globals.set("_code", code);
+    return JSON.parse(PY.p.runPython("import json, harness\njson.dumps(harness.run(_code))"));
+  });
+  PY.chain = job.catch(() => {});
+  return job;
+};
+$("#pyChip").addEventListener("click", () => { PY.start().catch(() => {}); });
+
+/* ---------- editors (W3Schools "Try it Yourself" style) ---------- */
+const ORIG = {};
+const SYMS = ["(", ")", "[", "]", "{", "}", "\"", "'", ":", "=", "&", "#", "_", "⇥"];
+function editor(id, code, opt) {
+  opt = opt || {}; ORIG[id] = code;
+  const val = S.edits[id] != null ? S.edits[id] : code;
+  return `<div class="ed" data-id="${id}"><textarea class="code" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" rows="3" aria-label="Python code editor">${esc(val)}</textarea>
+  <div class="sym">${SYMS.map(s => `<button type="button" class="symb" data-s="${s === "⇥" ? "    " : esc(s)}" aria-label="insert ${s}">${s}</button>`).join("")}</div>
+  <div class="row"><button type="button" data-act="run">${opt.run || "▶ Run  (Try it Yourself »)"}</button><button type="button" class="sec" data-act="reset">↺ Reset</button></div>
+  <div class="outbox"></div></div>`;
+}
+const fit = t => { t.style.height = "auto"; t.style.height = (t.scrollHeight + 4) + "px"; };
+function fitAll(root) { $$("textarea.code", root || document).forEach(fit); }
+async function runEd(ed) {
+  const box = $(".outbox", ed), code = $("textarea", ed).value;
+  if (/_{3,}/.test(code)) { box.innerHTML = '<div class="fb info">✏️ Fill in the blanks (<code>____</code>) first, then press Run.</div>'; return; }
+  box.innerHTML = '<div class="loading"><div class="spin"></div><span class="msg">Starting Python… (the first run downloads packages, ~10-40 s on mobile data)</span></div>';
+  const msg = t => { const m = $(".msg", box); if (m) m.textContent = t; };
+  try {
+    const r = await PY.run(code, msg); let h = "";
+    if (r.out) h += `<div class="out-h">OUTPUT</div><pre class="out">${esc(r.out.replace(/\n$/, ""))}</pre>`;
+    if (r.error) h += `<div class="out-h">ERROR</div><pre class="out err">${esc(r.error)}</pre>`;
+    r.images.forEach(b => h += `<img class="plot" alt="Matplotlib plot" src="data:image/png;base64,${b}">`);
+    if (!h) h = '<p class="muted">(ran fine, nothing printed)</p>';
+    box.innerHTML = h;
+  } catch (e) { box.innerHTML = `<pre class="out err">Could not run Python: ${esc(e.message || e)}\nCheck your internet connection and tap the Python chip at the top to retry.</pre>`; }
+}
+document.addEventListener("input", e => { const t = e.target; if (t.matches && t.matches("textarea.code")) { fit(t); const id = t.closest(".ed").dataset.id; S.edits[id] = t.value; save(); } });
+document.addEventListener("keydown", e => { const t = e.target; if (t.matches && t.matches("textarea.code") && e.key === "Tab") { e.preventDefault(); ins(t, "    "); } });
+function ins(t, s) { const a = t.selectionStart, b = t.selectionEnd; t.setRangeText(s, a, b, "end"); t.dispatchEvent(new Event("input", { bubbles: true })); }
+document.addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest(".sym")) e.preventDefault(); });
+
+/* ---------- visuals (SVG) ---------- */
+const VIS = {
+  freq(v) { const w = 300, f = Math.max(0.02, v.num / v.den) * w; return `<svg width="320" height="62" viewBox="0 0 320 62"><rect x="10" y="8" width="${w}" height="22" rx="6" fill="#e5e7eb"/><rect x="10" y="8" width="${f}" height="22" rx="6" fill="#04aa6d"/><text x="160" y="52" text-anchor="middle" font-size="13" fill="#1f2933">${v.num} out of ${v.den} &#8776; ${(v.num / v.den).toFixed(2)}</text></svg>`; },
+  die(v) { let s = '<svg width="330" height="64" viewBox="0 0 330 64">'; for (let i = 1; i <= 6; i++) { const on = (v.hi || []).includes(i); s += `<rect x="${6 + (i - 1) * 53}" y="6" width="46" height="46" rx="9" fill="${on ? "#bbf7d0" : "#fff"}" stroke="${on ? "#16a34a" : "#94a3b8"}" stroke-width="3"/><text x="${29 + (i - 1) * 53}" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2933">${i}</text>`; } return s + "</svg>"; },
+  grid(v) { let s = '<svg width="220" height="220" viewBox="0 0 220 220">', k = 0; v.parts.forEach(p => { for (let i = 0; i < p[1]; i++, k++) s += `<rect x="${(k % 10) * 21 + 5}" y="${Math.floor(k / 10) * 21 + 5}" width="19" height="19" rx="3" fill="${p[2]}"/>`; }); s += "</svg><div class='muted' style='text-align:left;display:inline-block;margin-left:10px;vertical-align:top'>100 people / squares:" + v.parts.map(p => `<br><span style="color:${p[2] === "#e5e7eb" ? "#6b7280" : p[2]}">&#9632;</span> ${p[0]}: ${p[1]}`).join("") + "</div>"; return s; },
+  bag(v) {
+    const n = v.red + v.blue, nm = v.names || ["red", "blue"]; let s = '<svg width="260" height="130" viewBox="0 0 260 130"><path d="M40 30 Q130 5 220 30 L235 115 Q130 135 25 115 Z" fill="#f3e8d3" stroke="#a16207" stroke-width="3"/>';
+    for (let i = 0; i < n; i++) { const c = i < v.red ? "#ef4444" : "#3b82f6", x = 62 + (i % 5) * 34, y = 52 + Math.floor(i / 5) * 32; s += `<circle cx="${x}" cy="${y}" r="13" fill="${c}"/>`; }
+    return s + `</svg><div class="muted"><span style="color:#ef4444">&#9679;</span> ${v.red} ${nm[0]} &nbsp; <span style="color:#3b82f6">&#9679;</span> ${v.blue} ${nm[1]} &nbsp; = ${n} in total<br>1st draw: ${v.red}/${n} &rarr; then 2nd: ${v.red - 1}/${n - 1} (one fewer ball, one fewer red)</div>`;
+  },
+  tree(v) {
+    const leaves = v.br.reduce((a, b) => a + b.ch.length, 0), H = leaves * 42 + 16; let s = `<svg width="360" height="${H}" viewBox="0 0 360 ${H}" font-size="12"><circle cx="22" cy="${H / 2}" r="6" fill="#282a35"/><text x="6" y="${H / 2 - 12}" fill="#475569">${v.root}</text>`, li = 0;
+    v.br.forEach(b => {
+      const ys = b.ch.map(() => 8 + (li++) * 42 + 21), y1 = (ys[0] + ys[ys.length - 1]) / 2;
+      s += `<line x1="22" y1="${H / 2}" x2="125" y2="${y1}" stroke="#64748b" stroke-width="2"/><text x="52" y="${(H / 2 + y1) / 2 - 5}" fill="#2563eb" font-weight="700">${b.p}</text><circle cx="125" cy="${y1}" r="6" fill="#2563eb"/><text x="116" y="${y1 - 11}" fill="#1f2933" font-weight="700">${b.l}</text>`;
+      b.ch.forEach((c, i) => { s += `<line x1="125" y1="${y1}" x2="232" y2="${ys[i]}" stroke="#64748b" stroke-width="2"/><text x="160" y="${(y1 + ys[i]) / 2 - 4}" fill="#2563eb" font-weight="700">${c.p}</text><circle cx="232" cy="${ys[i]}" r="5" fill="#16a34a"/><text x="242" y="${ys[i] - 3}" fill="#1f2933">${c.l}</text><text x="242" y="${ys[i] + 11}" fill="#15803d" font-weight="700">${c.leaf || ""}</text>`; });
+    });
+    return s + "</svg>";
+  }
+};
+const vis = v => v ? `<div class="vis">${VIS[v.t](v)}</div>` : "";
+
+/* ---------- quiz / lesson runner (Brilliant + SoloLearn style) ---------- */
+function runQuiz(el, items, o) {
+  let i = 0, att = 0, shown = 0, picked = null, seq = [], pool = [];
+  const total = items.length;
+  const pct = () => Math.round(i / total * 100);
+  function head() { return `<div class="pbar"><i style="width:${pct()}%"></i></div><div class="muted">${o.title} · card ${Math.min(i + 1, total)} of ${total}</div>`; }
+  function render() {
+    if (i >= total) return done();
+    const it = items[i]; att = 0; shown = 0; picked = null; seq = [];
+    let h = head() + '<div class="qcard">';
+    if (it.type === "learn") h += `<h3>${it.title}</h3>${it.html}${vis(it.vis)}<button class="big" data-q="next">Continue</button>`;
+    else if (it.type === "code") { const sn = findSnip(it.snippet); h += `<h3>▶ ${esc(it.title)}</h3><p class="muted">${sn.desc}</p>${editor("q-" + sn.id, sn.code)}<button class="big sec" data-q="next">Continue</button>`; }
+    else {
+      h += `<div class="q">${it.q}</div>${vis(it.vis)}`;
+      if (it.code) h += `<pre class="out" style="white-space:pre-wrap">${esc(it.code)}</pre>`;
+      if (it.type === "mcq") h += it.choices.map((c, k) => `<button class="choice" data-q="pick" data-k="${k}">${c}</button>`).join("");
+      if (it.type === "num") h += `<input class="ans" inputmode="decimal" autocomplete="off" autocapitalize="off" placeholder="Type your answer (e.g. 0.25 or 1/4)">`;
+      if (it.type === "fill") h += `<pre class="out" style="white-space:pre-wrap">${esc(it.code)}</pre><input class="ans" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type what goes in the blank">`;
+      if (it.type === "order") { pool = it.lines.map((l, k) => k).sort(() => Math.random() - .5); if (pool.every((v, k) => v === k)) pool.reverse(); h += `<div class="muted">Tap the lines in the right order. Tap a placed line to take it back.</div><div class="slots" data-r="slots"></div><div class="chips-o" data-r="pool"></div>`; }
+      if (it.hint) h += `<details class="hint"><summary>💡 Hint</summary><p>${it.hint}</p></details>`;
+      h += `<div class="fb-slot"></div><button class="big" data-q="check">Check</button>`;
+    }
+    el.innerHTML = h + "</div>"; fitAll(el); if (it.type === "order") drawOrder();
+  }
+  function drawOrder() {
+    const it = items[i];
+    $('[data-r=slots]', el).innerHTML = seq.map(k => `<button class="chipo in" data-q="unplace" data-k="${k}">${esc(it.lines[k])}</button>`).join("") || '<span class="muted">(empty)</span>';
+    $('[data-r=pool]', el).innerHTML = pool.filter(k => !seq.includes(k)).map(k => `<button class="chipo" data-q="place" data-k="${k}">${esc(it.lines[k])}</button>`).join("");
+  }
+  function parseNum(s) { s = s.trim().replace(/,/g, "").replace(/\s/g, ""); let pc = /%$/.test(s); s = s.replace(/%$/, ""); let v; if (/^-?[\d.]+\/[\d.]+$/.test(s)) { const [a, b] = s.split("/"); v = parseFloat(a) / parseFloat(b); } else v = Number(s); if (pc) v /= 100; return v; }
+  function stepsBtn(it) { return it.steps ? `<ul class="steps" data-r="steps"></ul><button class="sec" data-q="step">▶ Show the working, step by step</button>` : ""; }
+  function finish(it, ok, why) {
+    const slot = $(".fb-slot", el); const gain = ok ? (att === 1 ? 10 : 5) : 0; if (gain) addXP(gain);
+    slot.innerHTML = `<div class="fb ${ok ? "ok" : "info"}"><b>${ok ? "✅ Correct! +" + gain + " XP" : "Here is the answer"}</b><br>${why}</div>${stepsBtn(it)}`;
+    $('[data-q=check]', el).outerHTML = `<button class="big" data-q="next">${i + 1 >= total ? "Finish" : "Continue"}</button>`;
+    $$(".choice", el).forEach((b, k) => { b.disabled = true; if (it.type === "mcq" && k === it.answer) b.classList.add("ok"); });
+  }
+  function check() {
+    const it = items[i]; let ok = false;
+    if (it.type === "mcq") { if (picked == null) return toast("Pick an answer first"); ok = picked === it.answer; }
+    else if (it.type === "num") { const v = parseNum($(".ans", el).value); if (isNaN(v)) return toast("Type a number or a fraction like 1/4"); ok = Math.abs(v - (typeof it.answer === "string" ? parseNum(it.answer) : it.answer)) <= (it.tol || .006); }
+    else if (it.type === "fill") { const v = $(".ans", el).value.trim(); if (!v) return toast("Type your answer"); ok = it.answers.some(a => a === v || a.replace(/["']/g, "") === v.replace(/["']/g, "")); }
+    else if (it.type === "order") { if (seq.length < it.lines.length) return toast("Place all the lines first"); ok = seq.every((k, n) => k === n); }
+    att++;
+    if (ok) { right(); finish(it, true, it.why); return; }
+    wrong();
+    if (att >= 2) { finish(it, false, (it.type === "num" ? "Answer: <b>" + (typeof it.answer === "string" ? it.answer : it.answer) + "</b><br>" : it.type === "fill" ? "Answer: <code>" + esc(it.answers[0]) + "</code><br>" : it.type === "order" ? "Correct order:<ol>" + it.lines.map(l => `<li><code>${esc(l)}</code></li>`).join("") + "</ol>" : "") + it.why); return; }
+    $(".fb-slot", el).innerHTML = `<div class="fb no"><b>Not quite.</b> Streak reset. Open the 💡 hint and try once more.</div>`;
+    const d = $("details.hint", el); if (d) d.open = true;
+    if (it.type === "mcq") { $$(".choice", el)[picked].classList.remove("sel"); $$(".choice", el)[picked].classList.add("no"); picked = null; }
+    if (it.type === "order") { seq = []; drawOrder(); }
+  }
+  function toast(t) { $(".fb-slot", el).innerHTML = `<div class="fb info">${t}</div>`; }
+  function done() {
+    S.done[o.qid] = true; save(); addXP(20); buildNav();
+    el.innerHTML = `<div class="pbar"><i style="width:100%"></i></div><div class="qcard"><h3>🎉 ${o.title}: complete! +20 XP</h3><p>Total XP: <b>${S.xp}</b> · best streak: <b>${S.best}</b></p><div class="row"><button data-q="again">↺ Do it again</button><button class="sec" data-q="exit">Back</button></div></div>`;
+  }
+  el.onclick = e => {
+    const b = e.target.closest("[data-q]"); if (!b || !el.contains(b)) return; const a = b.dataset.q;
+    if (a === "next") { i++; render(); el.scrollIntoView({ block: "start", behavior: "smooth" }); }
+    else if (a === "pick") { picked = +b.dataset.k; $$(".choice", el).forEach(x => x.classList.remove("sel")); b.classList.add("sel"); }
+    else if (a === "check") check();
+    else if (a === "place") { seq.push(+b.dataset.k); drawOrder(); }
+    else if (a === "unplace") { seq = seq.filter(k => k !== +b.dataset.k); drawOrder(); }
+    else if (a === "step") { const it = items[i], ul = $('[data-r=steps]', el); if (shown < it.steps.length) { ul.insertAdjacentHTML("beforeend", `<li>${it.steps[shown++]}</li>`); } if (shown >= it.steps.length) b.remove(); else b.textContent = `▶ Next step (${shown}/${it.steps.length})`; }
+    else if (a === "again") { i = 0; render(); }
+    else if (a === "exit") { o.onExit && o.onExit(); }
+  };
+  el.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("input.ans")) { const c = $('[data-q=check]', el); if (c) c.click(); } });
+  render();
+}
+function findSnip(id) { for (const s of SECS) for (const x of s.snippets) if (x.id === id) return x; }
+
+/* ---------- pages ---------- */
+function links(s) { return `<div class="links">${s.links.map(l => `<a href="${l[1]}" target="_blank" rel="noopener">📖 ${l[0]}</a>`).join("")}</div>`; }
+function exBox(x, cls) { return `<div class="ex ${cls || ""}"><div class="hd">${cls === "bug" ? "🐞" : "Example"}: ${x.title}<small>${x.source || ""}</small></div><div class="bd">${x.desc ? `<p class="muted" style="margin-top:0">${x.desc}</p>` : ""}${editor(x.id, x.code)}</div></div>`; }
+function dbgBox(d) {
+  ORIG["fix-" + d.id] = d.fixed;
+  return `<div class="ex bug" data-dbg="${d.id}"><div class="hd">${d.title}<small>${d.source}</small></div><div class="bd"><p class="muted" style="margin-top:0">Press Run, read the LAST line of the error, fix the code, run again.</p>${editor(d.id, d.code, { run: "▶ Run (see the error)" })}
+  <details class="hint"><summary>💡 Hint</summary><p>${d.hint}</p></details>
+  <details class="rev"><summary>👀 Reveal the fix</summary><p>${d.explain}</p><pre class="out" style="white-space:pre-wrap">${esc(d.fixed)}</pre><button class="sec" data-act="loadfix" data-d="${d.id}">⬆ Load the fix into the editor</button></details></div></div>`;
+}
+function tryBox(t) {
+  if (t.kind === "text") return `<div class="ex tryit"><div class="hd">✍️ Try it</div><div class="bd"><div class="q" style="font-weight:600">${t.q}</div><details class="hint"><summary>💡 Hint</summary><p>${t.hint}</p></details><details class="rev"><summary>👀 Reveal the answer</summary>${t.answer_html}</details></div></div>`;
+  return `<div class="ex tryit"><div class="hd">✍️ Try it yourself</div><div class="bd"><div style="font-weight:600">${t.q}</div>${editor(t.id, t.starter)}<details class="hint"><summary>💡 Hint</summary><p>${t.hint}</p></details><details class="rev"><summary>👀 Reveal the answer</summary><pre class="out" style="white-space:pre-wrap">${esc(t.answer)}</pre><button class="sec" data-act="loadans" data-t="${t.id}">⬆ Load the answer into the editor</button></details></div></div>`;
+}
+function quizCard(s) {
+  if (!s.quiz || !s.quiz.length) return "";
+  return `<h2>⚡ Quick quiz</h2><div class="card" id="quizHost"><p class="muted" style="margin-top:0">${s.quiz.length} quick questions: fill the blank, predict the output, put the lines in order. XP + streak saved on this phone.</p><button class="big" data-act="startquiz">${S.done["quiz:" + s.id] ? "↺ Play the quiz again" : "▶ Start the quiz"}</button></div>`;
+}
+function pager(id) { const i = SECS.findIndex(s => s.id === id), p = SECS[i - 1], n = SECS[i + 1]; return `<div class="pager">${p ? `<a href="#/${p.id}">← ${p.title}</a>` : '<a href="#/">← Home</a>'}${n ? `<a href="#/${n.id}">${n.title} →</a>` : ""}</div>`; }
+
+function section(s) {
+  let h = `<h1>${s.icon} ${s.title}</h1><span class="scope">${s.scope}</span>${s.intro}${links(s)}`;
+  if (s.files && s.files.length) h += `<p class="muted">Data files used: ${s.files.map(f => `<a href="#" data-act="file" data-f="${f}">${f}</a>`).join(", ")} (tap a name to peek inside). Made-up files are EXAMPLE data, not the real paper data.</p><div class="filePrev"></div>`;
+  if (s.lessons) {
+    h += `<h2>🎯 Lessons (one card at a time)</h2><div id="lessonHost"><div class="lessons">${s.lessons.map(l => `<button data-act="lesson" data-l="${l.id}" class="${S.done["lesson:" + l.id] ? "done" : ""}"><span style="font-size:24px">${S.done["lesson:" + l.id] ? "✅" : "🎲"}</span><span><b>${l.title}</b><span class="s">${l.blurb} · ${l.cards.length} cards</span></span></button>`).join("")}</div></div>`;
+  }
+  if (s.snippets.length) h += `<h2>${s.lessons ? "▶ Law of large numbers: run it" : "💻 Examples: edit and run"}</h2>` + s.snippets.map(x => exBox(x)).join("");
+  if (s.debug.length) h += `<h2>🐞 Find and fix the bug</h2>` + s.debug.map(dbgBox).join("");
+  h += quizCard(s);
+  if (s.tryits.length) h += `<h2>✍️ Try it</h2>` + s.tryits.map(tryBox).join("");
+  if (s.revision) h += `<h2>📋 Revision sheet (worked cards)</h2><details class="rev"><summary>Open all the worked cards</summary>${s.revision}</details>`;
+  return h + pager(s.id);
+}
+function home() {
+  const groups = ["Theory", "Application", "Practical"], lessons = (BYID.probability.lessons || []).length;
+  const doneN = Object.keys(S.done).length;
+  return `<h1>DSC500 Practice Lab</h1><p class="muted">Exam: Mon 16 Nov 2026, 09:00. Every snippet runs <b>in your browser</b> (Python via Pyodide). Edit it, break it, fix it. Strictly exam scope.</p>
+  <div class="card"><h4>How this works</h4><ul><li>☰ opens the topic menu. Each topic: a short lesson, <b>Example</b> boxes you can edit and <b>Run</b>, a <b>quick quiz</b> (XP + 🔥 streak), and a <b>Try it</b> with hints.</li>
+  <li>Probability is <b>whiteboard only</b>: one interactive card at a time, with pictures, hints and every line of working.</li>
+  <li>Every code line has a comment saying what it does and what it expects.</li>
+  <li>First Run downloads Python packages (numpy ~ few MB, pandas / matplotlib / scikit-learn more). Best on Wi-Fi. After that they are cached.</li></ul>
+  <button class="big sec" data-act="preload">⬇ Pre-load all packages now (Wi-Fi recommended)</button><div id="preMsg" class="muted"></div></div>
+  <div class="card"><b>Progress:</b> ⭐ ${S.xp} XP · 🔥 best streak ${S.best} · ${doneN} lessons/quizzes completed <button class="sec" data-act="resetprog" style="float:right;min-height:36px;padding:2px 10px">reset</button></div>
+  ${groups.map(g => `<h2>${g}</h2><div class="home-grid">${SECS.filter(s => s.group === g).map(s => `<a href="#/${s.id}"><span style="font-size:26px">${s.icon}</span><span><b>${s.title}</b><small>${s.scope.replace(/^[A-Za-z ()]+: /, "")}</small></span></a>`).join("")}</div>`).join("")}
+  <h2>🚫 Not in scope (skip these)</h2><div class="oos">Central limit theorem · R² · confusion matrix, precision, recall, F1 · binomial probability.</div>
+  <p class="muted" style="margin-top:18px">Pyodide ${C.pyodide} (numpy 2.2, pandas 2.3, scikit-learn 1.7). Built ${C.built}. Data sets marked "example" are made up for practice. Code sources: your practical, the revision video files, and the CA practice pack (LAB A-E).</p>`;
+}
+
+function buildNav() {
+  let h = `<a href="#/" class="${location.hash === "#/" || !location.hash ? "active" : ""}">🏠 Home</a>`, last = "";
+  SECS.forEach(s => { if (s.group !== last) { h += `<h6>${s.group}</h6>`; last = s.group; } const done = S.done["quiz:" + s.id] || (s.lessons && s.lessons.every(l => S.done["lesson:" + l.id])); h += `<a href="#/${s.id}" class="${location.hash === "#/" + s.id ? "active" : ""}">${s.icon} ${s.title}<span class="tick">${done ? "✓" : ""}</span></a>`; });
+  $("#nav").innerHTML = h;
+}
+function route() {
+  document.body.classList.remove("nav-open");
+  const id = (location.hash.match(/^#\/(.+)$/) || [])[1], s = BYID[id];
+  $("#main").innerHTML = s ? section(s) : home(); buildNav(); fitAll($("#main")); window.scrollTo(0, 0); document.title = (s ? s.title + " · " : "") + "DSC500 Practice Lab";
+}
+$("#menuBtn").addEventListener("click", () => document.body.classList.toggle("nav-open"));
+$("#scrim").addEventListener("click", () => document.body.classList.remove("nav-open"));
+window.addEventListener("hashchange", route);
+
+document.addEventListener("click", async e => {
+  const sb = e.target.closest(".symb");
+  if (sb) { const t = $("textarea", sb.closest(".ed")); ins(t, sb.dataset.s.replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")); t.focus({ preventScroll: true }); return; }
+  const b = e.target.closest("[data-act]"); if (!b) return; const a = b.dataset.act, ed = b.closest(".ed");
+  if (a === "file") { e.preventDefault(); const pv = b.closest("p").nextElementSibling, f = b.dataset.f, lines = window.DATA[f].split("\n"); pv.innerHTML = `<pre class="out" style="white-space:pre">${esc(f)} (first ${Math.min(12, lines.length)} of ${lines.length} lines)\n\n${esc(lines.slice(0, 12).join("\n").slice(0, 1500))}</pre>`; }
+  else if (a === "run") runEd(ed);
+  else if (a === "reset") { const id = ed.dataset.id; delete S.edits[id]; save(); const t = $("textarea", ed); t.value = ORIG[id]; fit(t); $(".outbox", ed).innerHTML = ""; }
+  else if (a === "loadfix" || a === "loadans") { const box = b.closest(".ex"), e2 = $(".ed", box), id = e2.dataset.id, code = a === "loadfix" ? ORIG["fix-" + b.dataset.d] : (() => { for (const s of SECS) for (const t of s.tryits) if (t.id === b.dataset.t) return t.answer; })(); const t = $("textarea", e2); t.value = code; S.edits[id] = code; save(); fit(t); e2.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  else if (a === "startquiz") { const s = BYID[(location.hash.match(/^#\/(.+)$/) || [])[1]]; runQuiz($("#quizHost"), s.quiz, { title: "Quick quiz", qid: "quiz:" + s.id, onExit: route }); $("#quizHost").scrollIntoView({ behavior: "smooth" }); }
+  else if (a === "lesson") { const s = BYID.probability, l = s.lessons.find(x => x.id === b.dataset.l), host = $("#lessonHost"); runQuiz(host, l.cards, { title: l.title, qid: "lesson:" + l.id, onExit: route }); host.scrollIntoView({ behavior: "smooth" }); }
+  else if (a === "preload") { const m = $("#preMsg"); m.innerHTML = '<div class="loading"><div class="spin"></div><span id="pm">Loading…</span></div>'; try { await PY.loadPkgs(["numpy", "pandas", "matplotlib", "scikit-learn", "beautifulsoup4"], t => { const x = $("#pm"); if (x) x.textContent = t; }); m.innerHTML = "✅ Everything is loaded and cached."; } catch (err) { m.textContent = "⚠️ " + err.message; } }
+  else if (a === "resetprog") { if (confirm("Reset XP, streak and completed lessons?")) { S.xp = 0; S.streak = 0; S.best = 0; S.done = {}; save(); chips(); route(); } }
+});
+const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px'); setHH(); window.addEventListener('resize', setHH); window.__PY = PY; chips(); route();
+setTimeout(() => PY.start().catch(() => {}), 600);
+})();
+</script>
+</body></html>
