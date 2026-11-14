@@ -47,7 +47,7 @@ button:disabled{opacity:.5}
 .ex.bug .hd{background:#dc2626}.ex.tryit .hd{background:#7c3aed}
 textarea.code{display:block;width:100%;background:#f6f8fa;color:#111;border:1px solid #cbd2d9;border-radius:6px;padding:10px;font:16px/1.45 ui-monospace,Menlo,Consolas,monospace;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4;min-height:90px}
 .sym{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
-.sym button{min-height:42px;min-width:40px;flex:1 0 12%;padding:0;background:#e5e7eb;color:#111;font:600 18px ui-monospace,Menlo,monospace}
+.sym button{min-height:44px;min-width:40px;flex:1 0 12%;padding:0;background:#e5e7eb;color:#111;font:600 18px ui-monospace,Menlo,monospace}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.row>button{flex:1 1 120px}
 pre.out{background:#111827;color:#e5e7eb;border-radius:6px;padding:10px;margin:8px 0 0;font-size:13.5px;overflow-x:auto;max-width:100%;white-space:pre}
 pre.out.err{color:#fecaca;background:#3b0d0d;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -86,6 +86,29 @@ input.ans{width:100%;font-size:18px;padding:12px;border:2px solid #cbd2d9;border
 
 main{padding-bottom:calc(90px + env(safe-area-inset-bottom))}img,svg,pre,table,textarea{max-width:100%}.vis svg{height:auto}pre.out{-webkit-overflow-scrolling:touch}
 @media(max-width:360px){h1{font-size:21px}.card{padding:10px}.links a{font-size:13px}}
+
+/* ---- #TODO practice, dashboard, export/import ---- */
+.ex.todo.easy .hd{background:#16a34a}.ex.todo.medium .hd{background:#d97706}.ex.todo.hard .hd{background:#dc2626}.ex.todo.boss .hd{background:#7c3aed}
+.lvtabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px;margin:8px 0}
+.lvtab{background:#fff;color:#1f2933;border:2px solid #cbd2d9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:56px;padding:4px 6px;font-size:15px;line-height:1.2}
+.lvtab span{font-size:12px;font-weight:500;color:#6b7280}
+.lvtab.easy.on{background:#dcfce7;border-color:#16a34a}.lvtab.medium.on{background:#fef3c7;border-color:#d97706}.lvtab.hard.on{background:#fee2e2;border-color:#dc2626}
+.lvd{margin:2px 0 6px}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.pill{min-width:48px;min-height:48px;padding:0;border-radius:50%;background:#fff;color:#1f2933;border:2px solid #cbd2d9;font-size:17px}
+.pill.on{border-color:#2563eb;background:#eff6ff}.pill.ok{background:#16a34a;border-color:#16a34a;color:#fff}
+.tdres{list-style:none;margin:6px 0;padding:0}.tdres li{border-radius:8px;padding:6px 10px;margin:5px 0;font-size:15px;overflow-wrap:anywhere}
+.tdres li.ok{background:#dcfce7;border:1px solid #86efac}.tdres li.no{background:#fee2e2;border:1px solid #fca5a5}
+.ex.todo .row>button{flex:1 1 130px}
+.ex.todo textarea.code{min-height:150px}
+.lockmsg{margin:2px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0}
+.stats div{background:#fff;border:1px solid #dde1e6;border-radius:12px;padding:10px;text-align:center}.stats b{display:block;font-size:24px}.stats span{font-size:13px;color:#6b7280}
+label.btn.filebtn{display:flex;align-items:center;justify-content:center;flex:1 1 130px;min-height:46px;padding:8px 16px;border-radius:8px;background:#e5e7eb;color:#1f2933;font-weight:600;cursor:pointer;position:relative;overflow:hidden}
+label.filebtn input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;font-size:16px}
+textarea.code[readonly]{background:#eef0f3}
+#impTxt,#expTxt{word-break:break-all}
+.solbox pre.out{max-height:420px;overflow:auto}
 </style>
 </head><body>
 <header id="top">
@@ -96,7 +119,7 @@ main{padding-bottom:calc(90px + env(safe-area-inset-bottom))}img,svg,pre,table,t
 <div id="scrim"></div>
 <nav id="nav"></nav>
 <main id="main"><p class="muted" style="padding:20px">Loading…</p></main>
-<script src="content.js"></script><script src="bundle.js"></script><script>/* DSC500 Practice Lab: vanilla JS, Pyodide in the browser. Content comes from content.js */
+<script src="content.js"></script><script src="bundle.js"></script><script src="todo.js"></script><script>/* DSC500 Practice Lab: vanilla JS, Pyodide in the browser. Content comes from content.js */
 (function () {
 "use strict";
 const C = window.CONTENT, SECS = C.sections, BYID = Object.fromEntries(SECS.map(s => [s.id, s]));
@@ -104,11 +127,65 @@ const $ = (s, r) => (r || document).querySelector(s), $$ = (s, r) => Array.from(
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const DATA_FILES = ["books_page1.html", "books_sales.csv", "practice_students.csv", "study.csv", "salary.csv", "sales_data.csv", "student_performance.csv"];
 
-/* ---------- saved progress (localStorage) ---------- */
-const KEY = "dsc500lab.v1";
-let S = { xp: 0, streak: 0, best: 0, done: {}, edits: {} };
-try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+/* ---------- saved progress: IndexedDB (main) + localStorage mirror (fallback) ---------- */
+const KEY1 = "dsc500lab.v1", KEY2 = "dsc500lab.v2", DBN = "dsc500lab";
+const blank = () => ({ v: 2, ts: 0, xp: 0, streak: 0, best: 0, done: {}, edits: {}, editTs: {}, ex: {}, scores: {}, ui: {} });
+function normalize(o) {  // accepts v1 (old keys) and v2 objects; always returns a complete v2 object
+  const n = blank(); if (!o || typeof o !== "object") return n;
+  n.xp = +o.xp || 0; n.streak = +o.streak || 0; n.best = +o.best || 0; n.ts = +o.ts || 0;
+  ["done", "edits", "editTs", "ex", "scores", "ui"].forEach(k => { if (o[k] && typeof o[k] === "object") n[k] = o[k]; });
+  return n;
+}
+function merge(a, b) {  // never loses anything: max XP, union of done, newest code per editor, best result per exercise
+  const m = blank(), nw = (a.ts || 0) >= (b.ts || 0) ? a : b;
+  m.xp = Math.max(a.xp, b.xp); m.best = Math.max(a.best, b.best); m.streak = nw.streak; m.ts = Math.max(a.ts || 0, b.ts || 0);
+  m.done = Object.assign({}, a.done, b.done); m.ui = Object.assign({}, a.ui, b.ui, nw.ui);
+  new Set([...Object.keys(a.edits), ...Object.keys(b.edits)]).forEach(k => {
+    const ta = a.editTs[k] || 0, tb = b.editTs[k] || 0, src = (k in b.edits && (!(k in a.edits) || tb > ta)) ? b : a;
+    m.edits[k] = src.edits[k]; m.editTs[k] = src.editTs[k] || 0;
+  });
+  new Set([...Object.keys(a.ex), ...Object.keys(b.ex)]).forEach(k => {
+    const x = a.ex[k], y = b.ex[k]; if (!x || !y) { m.ex[k] = x || y; return; }
+    m.ex[k] = { best: Math.max(x.best || 0, y.best || 0), total: x.total || y.total, solved: !!(x.solved || y.solved), fails: Math.max(x.fails || 0, y.fails || 0), tries: Math.max(x.tries || 0, y.tries || 0), hints: Math.max(x.hints || 0, y.hints || 0), ts: Math.max(x.ts || 0, y.ts || 0) };
+  });
+  new Set([...Object.keys(a.scores), ...Object.keys(b.scores)]).forEach(k => { const x = a.scores[k], y = b.scores[k]; m.scores[k] = !x ? y : !y ? x : ((x.ok / x.total) >= (y.ok / y.total) ? x : y); });
+  return m;
+}
+const ST = { idb: false, last: 0, mode: "localStorage only", err: "" };
+let S = blank();
+(function loadSync() {  // fast path: localStorage (v2 first, then migrate v1)
+  let v2 = null, v1 = null;
+  try { v2 = JSON.parse(localStorage.getItem(KEY2) || "null"); } catch (e) {}
+  try { v1 = JSON.parse(localStorage.getItem(KEY1) || "null"); } catch (e) {}
+  S = v2 ? normalize(v2) : blank();
+  if (v1) S = merge(S, normalize(v1));  // old progress is merged in, never deleted
+})();
+let DB = null, saveT = null;
+function idbOpen() { return new Promise((res, rej) => { if (!window.indexedDB) return rej(new Error("no indexedDB")); const r = indexedDB.open(DBN, 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("blocked")); }); }
+const idbGet = k => new Promise((res, rej) => { const q = DB.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+const idbPut = (k, v) => new Promise((res, rej) => { const t = DB.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error); });
+let lastBackup = 0;
+function writeNow() {
+  clearTimeout(saveT); saveT = null; const json = JSON.stringify(S);
+  try { localStorage.setItem(KEY2, json); ST.last = Date.now(); } catch (e) { ST.err = "localStorage: " + e.message; }
+  if (DB) { idbPut("state", JSON.parse(json)).then(() => { ST.idb = true; ST.last = Date.now(); }).catch(e => { ST.err = "IndexedDB: " + (e && e.message); });
+    if (Date.now() - lastBackup > 60000) { lastBackup = Date.now(); idbPut("backup", JSON.parse(json)).catch(() => {}); } }
+}
+const save = () => { S.ts = Date.now(); if (!saveT) saveT = setTimeout(writeNow, 300); };  // autosave: debounced 300 ms after every change
+window.addEventListener("pagehide", () => { if (saveT) writeNow(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && saveT) writeNow(); });
+const storageReady = (async () => {
+  try {
+    DB = await Promise.race([idbOpen(), new Promise((_, rej) => setTimeout(() => rej(new Error("IndexedDB timeout")), 2500))]);
+    let st = null; try { st = await idbGet("state"); } catch (e) {}
+    if (!st) { try { st = await idbGet("backup"); } catch (e) {} }
+    if (st) S = merge(S, normalize(st));
+    ST.idb = true; ST.mode = "IndexedDB + localStorage mirror";
+    await idbPut("state", JSON.parse(JSON.stringify(S))); try { localStorage.setItem(KEY2, JSON.stringify(S)); } catch (e) {}
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  } catch (e) { DB = null; ST.err = String((e && e.message) || e); ST.mode = "localStorage only (IndexedDB unavailable)"; }
+})();
+window.__STORE = { get S() { return S; }, ST, merge, normalize, writeNow };
 function chips() { $("#xpChip").textContent = "⭐ " + S.xp; $("#streakChip").textContent = "🔥 " + S.streak; }
 function addXP(n) { S.xp += n; save(); chips(); }
 function right() { S.streak++; S.best = Math.max(S.best, S.streak); save(); chips(); }
@@ -142,13 +219,24 @@ PY.loadPkgs = async function (names, cb) {
   const p = await PY.start(); const todo = names.filter(n => !PY.loaded.has(n));
   if (todo.length) { await p.loadPackage(todo, { messageCallback: cb, errorCallback: cb }); todo.forEach(n => PY.loaded.add(n)); }
 };
-PY.run = function (code, cb) {
+PY.run = function (code, cb, extra) {
   const job = PY.chain.then(async () => {
     cb && cb("Starting Python…"); await PY.start();
-    await PY.loadPkgs(needed(code), t => cb && cb(t));
+    await PY.loadPkgs([...new Set([...needed(code), ...(extra || [])])], t => cb && cb(t));
     cb && cb("Running…");
     PY.p.globals.set("_code", code);
     return JSON.parse(PY.p.runPython("import json, harness\njson.dumps(harness.run(_code))"));
+  });
+  PY.chain = job.catch(() => {});
+  return job;
+};
+PY.grade = function (code, tests, extra, cb) {  // run the student's code, then the hidden tests; returns {out,error,images,checks}
+  const job = PY.chain.then(async () => {
+    cb && cb("Starting Python…"); await PY.start();
+    await PY.loadPkgs([...new Set([...needed(code), ...(extra || []), "numpy", "pandas"])], t => cb && cb(t));
+    cb && cb("Running your code and the hidden tests…");
+    PY.p.globals.set("_code", code); PY.p.globals.set("_tests", JSON.stringify(tests));
+    return JSON.parse(PY.p.runPython("import json, harness\njson.dumps(harness.grade(_code, json.loads(_tests)))"));
   });
   PY.chain = job.catch(() => {});
   return job;
@@ -182,7 +270,7 @@ async function runEd(ed) {
     box.innerHTML = h;
   } catch (e) { box.innerHTML = `<pre class="out err">Could not run Python: ${esc(e.message || e)}\nCheck your internet connection and tap the Python chip at the top to retry.</pre>`; }
 }
-document.addEventListener("input", e => { const t = e.target; if (t.matches && t.matches("textarea.code")) { fit(t); const id = t.closest(".ed").dataset.id; S.edits[id] = t.value; save(); } });
+document.addEventListener("input", e => { const t = e.target; if (t.matches && t.matches("textarea.code")) { fit(t); const ed0 = t.closest(".ed"); if (!ed0) return; const id = ed0.dataset.id; S.edits[id] = t.value; S.editTs[id] = Date.now(); save(); } });
 document.addEventListener("keydown", e => { const t = e.target; if (t.matches && t.matches("textarea.code") && e.key === "Tab") { e.preventDefault(); ins(t, "    "); } });
 function ins(t, s) { const a = t.selectionStart, b = t.selectionEnd; t.setRangeText(s, a, b, "end"); t.dispatchEvent(new Event("input", { bubbles: true })); }
 document.addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest(".sym")) e.preventDefault(); });
@@ -211,7 +299,7 @@ const vis = v => v ? `<div class="vis">${VIS[v.t](v)}</div>` : "";
 
 /* ---------- quiz / lesson runner (Brilliant + SoloLearn style) ---------- */
 function runQuiz(el, items, o) {
-  let i = 0, att = 0, shown = 0, picked = null, seq = [], pool = [];
+  let i = 0, att = 0, shown = 0, picked = null, seq = [], pool = [], okN = 0;
   const total = items.length;
   const pct = () => Math.round(i / total * 100);
   function head() { return `<div class="pbar"><i style="width:${pct()}%"></i></div><div class="muted">${o.title} · card ${Math.min(i + 1, total)} of ${total}</div>`; }
@@ -253,7 +341,7 @@ function runQuiz(el, items, o) {
     else if (it.type === "fill") { const v = $(".ans", el).value.trim(); if (!v) return toast("Type your answer"); ok = it.answers.some(a => a === v || a.replace(/["']/g, "") === v.replace(/["']/g, "")); }
     else if (it.type === "order") { if (seq.length < it.lines.length) return toast("Place all the lines first"); ok = seq.every((k, n) => k === n); }
     att++;
-    if (ok) { right(); finish(it, true, it.why); return; }
+    if (ok) { right(); okN++; finish(it, true, it.why); return; }
     wrong();
     if (att >= 2) { finish(it, false, (it.type === "num" ? "Answer: <b>" + (typeof it.answer === "string" ? it.answer : it.answer) + "</b><br>" : it.type === "fill" ? "Answer: <code>" + esc(it.answers[0]) + "</code><br>" : it.type === "order" ? "Correct order:<ol>" + it.lines.map(l => `<li><code>${esc(l)}</code></li>`).join("") + "</ol>" : "") + it.why); return; }
     $(".fb-slot", el).innerHTML = `<div class="fb no"><b>Not quite.</b> Streak reset. Open the 💡 hint and try once more.</div>`;
@@ -263,7 +351,7 @@ function runQuiz(el, items, o) {
   }
   function toast(t) { $(".fb-slot", el).innerHTML = `<div class="fb info">${t}</div>`; }
   function done() {
-    S.done[o.qid] = true; save(); addXP(20); buildNav();
+    S.done[o.qid] = true; S.scores[o.qid] = { ok: okN, total: total }; save(); addXP(20); buildNav();
     el.innerHTML = `<div class="pbar"><i style="width:100%"></i></div><div class="qcard"><h3>🎉 ${o.title}: complete! +20 XP</h3><p>Total XP: <b>${S.xp}</b> · best streak: <b>${S.best}</b></p><div class="row"><button data-q="again">↺ Do it again</button><button class="sec" data-q="exit">Back</button></div></div>`;
   }
   el.onclick = e => {
@@ -274,13 +362,143 @@ function runQuiz(el, items, o) {
     else if (a === "place") { seq.push(+b.dataset.k); drawOrder(); }
     else if (a === "unplace") { seq = seq.filter(k => k !== +b.dataset.k); drawOrder(); }
     else if (a === "step") { const it = items[i], ul = $('[data-r=steps]', el); if (shown < it.steps.length) { ul.insertAdjacentHTML("beforeend", `<li>${it.steps[shown++]}</li>`); } if (shown >= it.steps.length) b.remove(); else b.textContent = `▶ Next step (${shown}/${it.steps.length})`; }
-    else if (a === "again") { i = 0; render(); }
+    else if (a === "again") { i = 0; okN = 0; render(); }
     else if (a === "exit") { o.onExit && o.onExit(); }
   };
   el.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("input.ans")) { const c = $('[data-q=check]', el); if (c) c.click(); } });
   render();
 }
 function findSnip(id) { for (const s of SECS) for (const x of s.snippets) if (x.id === id) return x; }
+
+
+/* ---------- #TODO practice (SoloLearn style), final challenges, dashboard ---------- */
+const TD = window.TODO || { ex: [], prob: {}, theory: {} };
+const TEX = Object.fromEntries(TD.ex.map(e => [e.id, e]));
+const LV = { easy: { n: "Easy", ico: "🟢", xp: 15, hintFails: 0, solFails: 1, d: "1–3 TODOs, guided" }, medium: { n: "Medium", ico: "🟡", xp: 25, hintFails: 0, solFails: 2, d: "several TODOs, less hinting" }, hard: { n: "Hard", ico: "🔴", xp: 40, hintFails: 1, solFails: 2, d: "exam style: only TODO comments, hints unlock after a failed Check" }, boss: { n: "Final Challenge", ico: "🏆", xp: 75, hintFails: 1, solFails: 2, d: "everything in the section" } };
+const SEC_EX = (sec, lv) => TD.ex.filter(e => e.sec === sec && e.level === lv);
+const exState = id => S.ex[id] || (S.ex[id] = { best: 0, total: TEX[id].tests.length, solved: false, fails: 0, tries: 0, hints: 0, ts: 0 });
+const nSolved = (sec, lv) => SEC_EX(sec, lv).filter(e => S.ex[e.id] && S.ex[e.id].solved).length;
+const SYMS2 = SYMS;
+function todoEditor(e) {
+  const id = "todo-" + e.id; ORIG[id] = e.skeleton;
+  const val = S.edits[id] != null ? S.edits[id] : e.skeleton;
+  return `<div class="ed" data-id="${id}"><textarea class="code" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" rows="6" aria-label="Python code editor for ${esc(e.title)}">${esc(val)}</textarea>
+  <div class="sym">${SYMS2.map(s => `<button type="button" class="symb" data-s="${s === "⇥" ? "    " : esc(s)}" aria-label="insert ${s}">${s}</button>`).join("")}</div></div>`;
+}
+function todoCard(e) {
+  const L = LV[e.level], st = exState(e.id), hl = e.hints.length;
+  const hintOpen = st.fails >= L.hintFails, solOpen = st.solved || st.fails >= L.solFails;
+  const files = e.files.length ? `<p class="muted">Data files: ${e.files.map(f => `<a href="#" data-act="file" data-f="${f}">${f}</a>`).join(", ")}</p><div class="filePrev"></div>` : "";
+  return `<div class="ex todo ${e.level}" data-ex="${e.id}"><div class="hd">${L.ico} ${esc(e.title)}<small>${e.todos} TODO${e.todos > 1 ? "s" : ""} · +${L.xp} XP</small></div><div class="bd">
+  <p style="margin-top:0"><b>${e.task}</b></p>${files}
+  ${todoEditor(e)}
+  <div class="row"><button type="button" class="sec" data-act="tdrun">▶ Run</button><button type="button" data-act="tdcheck">✅ Check my code</button></div>
+  <div class="row"><button type="button" class="sec" data-act="tdhint" ${hintOpen ? "" : "disabled"}>💡 Hint <span class="hn">${st.hints}/${hl}</span></button><button type="button" class="sec" data-act="tdsol" ${solOpen ? "" : "disabled"}>${solOpen ? "👀 Model solution" : "🔒 Model solution"}</button><button type="button" class="sec" data-act="tdreset">↺ Start over</button></div>
+  <div class="lockmsg muted">${hintOpen ? "" : "💡 Hints unlock after one failed Check. Have a go first!"}${!solOpen && hintOpen ? "🔒 The model solution unlocks after " + L.solFails + " failed Check" + (L.solFails > 1 ? "s" : "") + "." : ""}</div>
+  <div class="hints">${e.hints.slice(0, st.hints).map((h, i) => `<div class="fb info"><b>Hint ${i + 1}:</b> ${h}</div>`).join("")}</div>
+  <div class="grade">${st.solved ? `<div class="fb ok"><b>✅ Solved</b> (best ${st.best}/${st.total} checks). Run it again or press Start over to redo it from scratch.</div>` : (st.tries ? `<div class="fb info">Best so far: ${st.best} of ${st.total} checks passed.</div>` : "")}</div>
+  <div class="outbox"></div><div class="solbox">${solOpen && st.showsol ? "" : ""}</div></div></div>`;
+}
+function todoBlock(s) {
+  const lvls = ["easy", "medium", "hard"].filter(l => SEC_EX(s.id, l).length); if (!lvls.length) return "";
+  const ui = S.ui[s.id] || (S.ui[s.id] = { lv: lvls.find(l => nSolved(s.id, l) < SEC_EX(s.id, l).length) || "easy", i: 0 }), lv = lvls.includes(ui.lv) ? ui.lv : "easy", list = SEC_EX(s.id, lv), i = Math.min(ui.i || 0, list.length - 1);
+  return `<h2>🎯 #TODO practice (SoloLearn style)</h2><div class="card" id="tdBlock" data-sec="${s.id}">
+  <p class="muted" style="margin-top:0">Read the <code># TODO</code> comments and <b>write the code yourself</b>. Press <b>Check</b>: hidden tests mark every TODO ✅ or ❌. Your code is saved as you type.</p>
+  <div class="lvtabs">${lvls.map(l => `<button type="button" class="lvtab ${l} ${l === lv ? "on" : ""}" data-act="tdlevel" data-lv="${l}">${LV[l].ico} ${LV[l].n}<span>${nSolved(s.id, l)}/${SEC_EX(s.id, l).length}</span></button>`).join("")}</div>
+  <p class="muted lvd">${LV[lv].d}</p>
+  <div class="pills">${list.map((e, k) => `<button type="button" class="pill ${k === i ? "on" : ""} ${(S.ex[e.id] || {}).solved ? "ok" : ""}" data-act="tdpick" data-k="${k}" aria-label="Exercise ${k + 1}">${(S.ex[e.id] || {}).solved ? "✓" : k + 1}</button>`).join("")}</div>
+  <div id="tdHost">${todoCard(list[i])}</div></div>`;
+}
+function finalBlock(s) {
+  const bs = SEC_EX(s.id, "boss");
+  if (bs.length) { const e = bs[0], sv = (S.ex[e.id] || {}).solved; return `<h2>🏆 Final Challenge</h2><div class="card" id="bossBlock"><p class="muted" style="margin-top:0">Tests everything in this section in one go. ${sv ? "✅ Cleared!" : "Take your time, then press Check."}</p><div id="bossHost">${todoCard(e)}</div></div>`; }
+  const th = TD.theory[s.id]; if (th) return `<h2>🏆 Final Challenge</h2><div class="card" id="finHost"><p class="muted" style="margin-top:0">${th.length} questions that test the whole topic. ${S.done["final:" + s.id] ? "✅ Cleared before." : ""}</p><button class="big" data-act="startfinal" data-f="th">${S.done["final:" + s.id] ? "↺ Play the Final Challenge again" : "▶ Start the Final Challenge"}</button></div>`;
+  return "";
+}
+function probBlock() {
+  const ks = [["easy", "🟢 Easy", "one rule"], ["medium", "🟡 Medium", "OR / AND / complement"], ["hard", "🔴 Hard", "without replacement, conditional, Bayes"], ["final", "🏆 Final Challenge", "mixed, exam style"]];
+  return `<h2>🧮 Calculation challenges (type the number)</h2><div class="card" id="pcHost"><p class="muted" style="margin-top:0">Whiteboard style: work it out on paper, then type the answer as a decimal or a fraction like 5/14. Hints first, then the worked steps.</p><div class="lessons">${ks.map(k => `<button data-act="prob" data-k="${k[0]}" class="${S.done["pc:" + k[0]] ? "done" : ""}"><span style="font-size:24px">${S.done["pc:" + k[0]] ? "✅" : "🧮"}</span><span><b>${k[1]}</b><span class="s">${k[2]} · ${TD.prob[k[0]].length} questions</span></span></button>`).join("")}</div></div>`;
+}
+function setGrade(box, e, r) {
+  const st = exState(e.id), L = LV[e.level], total = r.checks.length, passed = r.checks.filter(c => c.ok).length, all = passed === total && !r.error;
+  const byTodo = {}; r.checks.forEach(c => { (byTodo[c.todo] = byTodo[c.todo] || []).push(c); });
+  const todos = Object.keys(byTodo).map(Number).sort((a, b) => a - b), okTodos = todos.filter(n => byTodo[n].every(c => c.ok)).length;
+  const prev = st.solved; st.tries++; st.ts = Date.now(); st.total = total; st.best = Math.max(st.best, passed);
+  let msg = "";
+  if (all) { if (!st.solved) { st.solved = true; addXP(L.xp); msg = ` <b>+${L.xp} XP</b>`; } right(); } else { st.fails++; wrong(); }
+  save(); buildNav();
+  let h = `<div class="out-h">RESULT: ${okTodos} of ${todos.length} TODOs ✅ · ${passed}/${total} checks</div><div class="pbar"><i style="width:${Math.round(passed / total * 100)}%"></i></div><ul class="tdres">` +
+    todos.map(n => { const cs = byTodo[n], ok = cs.every(c => c.ok); return `<li class="${ok ? "ok" : "no"}"><b>${ok ? "✅" : "❌"} TODO ${n}</b>${cs.filter(c => !c.ok).map(c => `<br><span class="muted">needs: ${esc(c.label)}</span>`).join("")}</li>`; }).join("") + "</ul>";
+  if (all) h = `<div class="fb ok"><b>🎉 All ${total} checks passed!</b>${msg || (prev ? " (already solved before)" : "")}</div>` + h;
+  else h = `<div class="fb no"><b>Not yet.</b> ${r.error ? "Your code stopped with an error (see below). " : ""}Fix the ❌ TODOs and press Check again.</div>` + h;
+  h += outHtml(r);
+  box.querySelector(".outbox").innerHTML = h; refreshCard(box, e);
+}
+function outHtml(r) {
+  let h = ""; if (r.out) h += `<div class="out-h">OUTPUT</div><pre class="out">${esc(r.out.replace(/\n$/, ""))}</pre>`;
+  if (r.error) h += `<div class="out-h">ERROR</div><pre class="out err">${esc(r.error)}</pre>`;
+  (r.images || []).forEach(b => h += `<img class="plot" alt="Matplotlib plot" src="data:image/png;base64,${b}">`); return h;
+}
+function refreshCard(box, e) {  // update the locks, counters and tabs without touching the editor
+  const st = exState(e.id), L = LV[e.level], hintOpen = st.fails >= L.hintFails, solOpen = st.solved || st.fails >= L.solFails;
+  const hb = $("[data-act=tdhint]", box), sb = $("[data-act=tdsol]", box); hb.disabled = !hintOpen; sb.disabled = !solOpen; sb.textContent = solOpen ? "👀 Model solution" : "🔒 Model solution"; $(".hn", box).textContent = st.hints + "/" + e.hints.length;
+  $(".lockmsg", box).innerHTML = hintOpen ? (solOpen ? "" : "🔒 The model solution unlocks after " + L.solFails + " failed Check" + (L.solFails > 1 ? "s" : "") + ".") : "💡 Hints unlock after one failed Check. Have a go first!";
+  const g = $(".grade", box); if (g) g.innerHTML = st.solved ? `<div class="fb ok"><b>✅ Solved</b> (best ${st.best}/${st.total} checks).</div>` : `<div class="fb info">Best so far: ${st.best} of ${st.total} checks passed.</div>`;
+  const blk = box.closest("#tdBlock");
+  if (blk) { const sec = blk.dataset.sec; $$(".lvtab", blk).forEach(b => { const l = b.dataset.lv; $("span", b).textContent = nSolved(sec, l) + "/" + SEC_EX(sec, l).length; }); const list = SEC_EX(sec, e.level); $$(".pill", blk).forEach((p, k) => { const sv = (S.ex[list[k].id] || {}).solved; p.classList.toggle("ok", !!sv); p.textContent = sv ? "✓" : k + 1; }); }
+}
+async function tdAction(b) {
+  const act = b.dataset.act, box = b.closest(".ex.todo"), e = TEX[box.dataset.ex], ed = $(".ed", box), ta = $("textarea", ed), ob = $(".outbox", box);
+  if (act === "tdhint") { const st = exState(e.id); if (st.hints < e.hints.length) { st.hints++; save(); $(".hints", box).innerHTML = e.hints.slice(0, st.hints).map((h, i) => `<div class="fb info"><b>Hint ${i + 1}:</b> ${h}</div>`).join(""); refreshCard(box, e); } return; }
+  if (act === "tdsol") { const sb = $(".solbox", box); if (sb.innerHTML.trim()) { sb.innerHTML = ""; return; } sb.innerHTML = `<div class="out-h">MODEL SOLUTION (every line commented)</div><pre class="out" style="white-space:pre-wrap">${esc(e.solution)}</pre><button class="sec" type="button" data-act="tdload">⬆ Load the solution into the editor</button>`; return; }
+  if (act === "tdload") { ta.value = e.solution; S.edits["todo-" + e.id] = e.solution; S.editTs["todo-" + e.id] = Date.now(); save(); fit(ta); return; }
+  if (act === "tdreset") { if (!confirm("Start this exercise over? Your code here is replaced by the skeleton.")) return; delete S.edits["todo-" + e.id]; delete S.editTs["todo-" + e.id]; const st = exState(e.id); st.solved = false; st.best = 0; st.fails = 0; st.hints = 0; st.tries = 0; save(); ta.value = e.skeleton; fit(ta); ob.innerHTML = ""; $(".solbox", box).innerHTML = ""; $(".hints", box).innerHTML = ""; refreshCard(box, e); buildNav(); return; }
+  ob.innerHTML = '<div class="loading"><div class="spin"></div><span class="msg">Starting Python… (the first run downloads packages, ~10-40 s on mobile data)</span></div>';
+  const msg = t => { const m = $(".msg", ob); if (m) m.textContent = t; };
+  b.disabled = true;
+  try {
+    if (act === "tdrun") { const r = await PY.run(ta.value, msg, e.pkgs); ob.innerHTML = outHtml(r) || '<p class="muted">(ran fine, nothing printed)</p>'; }
+    else { const r = await PY.grade(ta.value, e.tests, e.pkgs, msg); setGrade(box, e, r); }
+  } catch (err) { ob.innerHTML = `<pre class="out err">Could not run Python: ${esc(err.message || err)}\nCheck your internet connection and tap the Python chip at the top to retry.</pre>`; }
+  b.disabled = false;
+}
+function startSet(host, items, o) { runQuiz(host, items, Object.assign({ onExit: route }, o)); host.scrollIntoView({ behavior: "smooth" }); }
+
+/* ---------- progress dashboard + export / import ---------- */
+const SEC_NAMES = Object.fromEntries(SECS.map(s => [s.id, s.icon + " " + s.title]));
+const CODE_SECS = ["scraping", "debugging", "numpy", "pandas1", "pandas2", "pandas3", "matplotlib", "regression"];
+function exportCode() { return "DSC500LAB1:" + btoa(unescape(encodeURIComponent(JSON.stringify(S)))); }
+function importCode(txt) {
+  txt = String(txt || "").trim(); let o;
+  try { if (txt.startsWith("DSC500LAB1:")) o = JSON.parse(decodeURIComponent(escape(atob(txt.slice(11).replace(/\s/g, ""))))); else o = JSON.parse(txt); } catch (e) { throw new Error("That is not a valid progress code or file."); }
+  const inc = normalize(o); if (!(inc.xp || Object.keys(inc.ex).length || Object.keys(inc.done).length || Object.keys(inc.edits).length)) throw new Error("The code has no progress inside it.");
+  const before = S.xp; S = merge(S, inc); save(); writeNow(); chips(); return { before, after: S.xp, ex: Object.values(S.ex).filter(x => x.solved).length };
+}
+function progressPage() {
+  const all = TD.ex, solved = all.filter(e => (S.ex[e.id] || {}).solved), bosses = all.filter(e => e.level === "boss"), eb = S.ex["exam-boss"] || {};
+  const row = sec => { const cell = lv => { const l = SEC_EX(sec, lv); return l.length ? `${nSolved(sec, lv)}/${l.length}` : "–"; }; return `<tr><td><a href="#/${sec}">${SEC_NAMES[sec]}</a></td><td>${cell("easy")}</td><td>${cell("medium")}</td><td>${cell("hard")}</td><td>${(S.ex[(SEC_EX(sec, "boss")[0] || {}).id] || {}).solved ? "🏆" : "–"}</td><td>${S.done["quiz:" + sec] ? "✓" : "–"}</td></tr>`; };
+  const probDone = ["easy", "medium", "hard", "final"].map(k => S.done["pc:" + k] ? "✓" : "–").join(" ");
+  const theoryRows = ["theory-process", "theory-ml"].map(s => `<tr><td><a href="#/${s}">${SEC_NAMES[s]}</a></td><td colspan="3">Final Challenge</td><td>${S.done["final:" + s] ? "🏆" : "–"}</td><td>–</td></tr>`).join("");
+  const edN = Object.keys(S.edits).length, saved = ST.last ? new Date(ST.last).toLocaleTimeString() : "not yet";
+  return `<h1>📊 My progress</h1><p class="muted">Saved automatically on this device. Use Export to move it between your phone and laptop.</p>
+  <div class="stats"><div><b>${S.xp}</b><span>⭐ XP</span></div><div><b>${S.best}</b><span>🔥 best streak</span></div><div><b>${solved.length}/${all.length}</b><span>#TODO exercises</span></div><div><b>${bosses.filter(e => (S.ex[e.id] || {}).solved).length}/${bosses.length}</b><span>🏆 bosses</span></div></div>
+  <div class="card"><h4>👹 Exam Boss</h4>${eb.solved ? "✅ Cleared!" : eb.tries ? `Best so far: ${eb.best}/${eb.total} checks. <a href="#/boss">Try again</a>` : `Not attempted yet. <a href="#/boss">Take it on</a>`}</div>
+  <div class="card"><h4>Section by section</h4><table class="t"><tr><th>Section</th><th>Easy</th><th>Med</th><th>Hard</th><th>Boss</th><th>Quiz</th></tr>${theoryRows}${CODE_SECS.map(row).join("")}<tr><td><a href="#/probability">${SEC_NAMES.probability}</a></td><td colspan="5">Calculation challenges (easy · medium · hard · final): ${probDone}</td></tr></table></div>
+  <div class="card"><h4>💾 Where your progress lives</h4><p class="muted" style="margin:0">${esc(ST.mode)}. Last save: ${saved}. Your typed code is kept for ${edN} editors. ${ST.err ? "<br>⚠️ " + esc(ST.err) : ""}</p>
+  <p class="muted">It survives closing the tab, refreshing and new site versions (same address). It does NOT travel between devices by itself: use Export / Import below. Clearing Safari / Chrome website data deletes it, so export a copy before the exam.</p></div>
+  <div class="card"><h4>⬆ Export (backup or move to another device)</h4><textarea id="expTxt" class="code" readonly rows="3" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Progress code">${esc(exportCode())}</textarea>
+  <div class="row"><button type="button" data-act="expcopy">📋 Copy code</button><button type="button" class="sec" data-act="expfile">⬇ Download file</button></div><div id="expMsg" class="muted"></div></div>
+  <div class="card"><h4>⬇ Import (merge progress from another device)</h4><p class="muted" style="margin-top:0">Paste a code or choose a file. Nothing is lost: it keeps the higher XP, every exercise solved on either device and your newest code.</p>
+  <textarea id="impTxt" class="code" rows="3" placeholder="Paste DSC500LAB1:… here" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" aria-label="Paste progress code"></textarea>
+  <div class="row"><button type="button" data-act="impgo">⬇ Import pasted code</button><label class="btn sec filebtn">📂 Choose file<input id="impFile" type="file" accept=".json,.txt,application/json,text/plain"></label></div><div id="impMsg" class="muted"></div></div>
+  <div class="card"><button class="sec" data-act="resetprog">Reset everything (XP, solved exercises)</button></div>`;
+}
+function bossPage() {
+  const e = TEX["exam-boss"], sv = (S.ex[e.id] || {}).solved;
+  return `<h1>👹 Exam Boss</h1><span class="scope">Everything in the course in one answer</span>
+  <div class="note"><b>Treat it like the real exam.</b> Scrape → DataFrame → clean → NumPy statistics → Akhona chart → regression. Hidden tests mark each TODO. No peeking at the other sections: hints unlock after one failed Check, the model solution after two. ${sv ? "<br>✅ You have cleared it. Beat it again faster!" : ""}</div>
+  <div class="card"><div id="bossHost">${todoCard(e)}</div></div><div class="pager"><a href="#/progress">📊 My progress</a><a href="#/">🏠 Home</a></div>`;
+}
 
 /* ---------- pages ---------- */
 function links(s) { return `<div class="links">${s.links.map(l => `<a href="${l[1]}" target="_blank" rel="noopener">📖 ${l[0]}</a>`).join("")}</div>`; }
@@ -309,7 +527,10 @@ function section(s) {
   }
   if (s.snippets.length) h += `<h2>${s.lessons ? "▶ Law of large numbers: run it" : "💻 Examples: edit and run"}</h2>` + s.snippets.map(x => exBox(x)).join("");
   if (s.debug.length) h += `<h2>🐞 Find and fix the bug</h2>` + s.debug.map(dbgBox).join("");
+  h += todoBlock(s);
+  if (s.id === "probability") h += probBlock();
   h += quizCard(s);
+  h += finalBlock(s);
   if (s.tryits.length) h += `<h2>✍️ Try it</h2>` + s.tryits.map(tryBox).join("");
   if (s.revision) h += `<h2>📋 Revision sheet (worked cards)</h2><details class="rev"><summary>Open all the worked cards</summary>${s.revision}</details>`;
   return h + pager(s.id);
@@ -323,7 +544,9 @@ function home() {
   <li>Every code line has a comment saying what it does and what it expects.</li>
   <li>First Run downloads Python packages (numpy ~ few MB, pandas / matplotlib / scikit-learn more). Best on Wi-Fi. After that they are cached.</li></ul>
   <button class="big sec" data-act="preload">⬇ Pre-load all packages now (Wi-Fi recommended)</button><div id="preMsg" class="muted"></div></div>
-  <div class="card"><b>Progress:</b> ⭐ ${S.xp} XP · 🔥 best streak ${S.best} · ${doneN} lessons/quizzes completed <button class="sec" data-act="resetprog" style="float:right;min-height:36px;padding:2px 10px">reset</button></div>
+  <div class="card"><b>Progress:</b> ⭐ ${S.xp} XP · 🔥 best streak ${S.best} · ${doneN} lessons/quizzes · ${Object.values(S.ex).filter(x => x.solved).length}/${TD.ex.length} #TODO exercises <a href="#/progress" class="btn sec" style="float:right;min-height:36px;padding:4px 12px;text-decoration:none">📊 Dashboard</a></div>
+  <div class="home-grid"><a href="#/boss"><span style="font-size:26px">👹</span><span><b>Exam Boss</b><small>scrape → clean → stats → chart → regression, graded</small></span></a></div>
+  <div class="note"><b>New: #TODO practice.</b> Every code topic has Easy, Medium and Hard exercises where you write the code from numbered # TODO comments (like the exam), plus a Final Challenge. Progress saves automatically; export it from the dashboard.</div>
   ${groups.map(g => `<h2>${g}</h2><div class="home-grid">${SECS.filter(s => s.group === g).map(s => `<a href="#/${s.id}"><span style="font-size:26px">${s.icon}</span><span><b>${s.title}</b><small>${s.scope.replace(/^[A-Za-z ()]+: /, "")}</small></span></a>`).join("")}</div>`).join("")}
   <h2>🚫 Not in scope (skip these)</h2><div class="oos">Central limit theorem · R² · confusion matrix, precision, recall, F1 · binomial probability.</div>
   <p class="muted" style="margin-top:18px">Pyodide ${C.pyodide} (numpy 2.2, pandas 2.3, scikit-learn 1.7). Built ${C.built}. Data sets marked "example" are made up for practice. Code sources: your practical, the revision video files, and the CA practice pack (LAB A-E).</p>`;
@@ -331,22 +554,37 @@ function home() {
 
 function buildNav() {
   let h = `<a href="#/" class="${location.hash === "#/" || !location.hash ? "active" : ""}">🏠 Home</a>`, last = "";
-  SECS.forEach(s => { if (s.group !== last) { h += `<h6>${s.group}</h6>`; last = s.group; } const done = S.done["quiz:" + s.id] || (s.lessons && s.lessons.every(l => S.done["lesson:" + l.id])); h += `<a href="#/${s.id}" class="${location.hash === "#/" + s.id ? "active" : ""}">${s.icon} ${s.title}<span class="tick">${done ? "✓" : ""}</span></a>`; });
+  SECS.forEach(s => { if (s.group !== last) { h += `<h6>${s.group}</h6>`; last = s.group; } const done = S.done["quiz:" + s.id] || (S.ex[(SEC_EX(s.id, "boss")[0] || {}).id] || {}).solved || S.done["final:" + s.id] || (s.lessons && s.lessons.every(l => S.done["lesson:" + l.id])); h += `<a href="#/${s.id}" class="${location.hash === "#/" + s.id ? "active" : ""}">${s.icon} ${s.title}<span class="tick">${done ? "✓" : ""}</span></a>`; });
+  h += `<h6>Challenge</h6><a href="#/boss" class="${location.hash === "#/boss" ? "active" : ""}">👹 Exam Boss<span class="tick">${(S.ex["exam-boss"] || {}).solved ? "✓" : ""}</span></a><a href="#/progress" class="${location.hash === "#/progress" ? "active" : ""}">📊 My progress</a>`;
   $("#nav").innerHTML = h;
 }
 function route() {
   document.body.classList.remove("nav-open");
   const id = (location.hash.match(/^#\/(.+)$/) || [])[1], s = BYID[id];
-  $("#main").innerHTML = s ? section(s) : home(); buildNav(); fitAll($("#main")); window.scrollTo(0, 0); document.title = (s ? s.title + " · " : "") + "DSC500 Practice Lab";
+  $("#main").innerHTML = s ? section(s) : id === "progress" ? progressPage() : id === "boss" ? bossPage() : home(); buildNav(); fitAll($("#main")); window.scrollTo(0, 0); document.title = (s ? s.title + " · " : id === "progress" ? "My progress · " : id === "boss" ? "Exam Boss · " : "") + "DSC500 Practice Lab";
 }
 $("#menuBtn").addEventListener("click", () => document.body.classList.toggle("nav-open"));
 $("#scrim").addEventListener("click", () => document.body.classList.remove("nav-open"));
 window.addEventListener("hashchange", route);
+document.addEventListener("change", e => { const f = e.target; if (f && f.id === "impFile" && f.files[0]) { const rd = new FileReader(); rd.onload = () => { try { const r = importCode(rd.result); $("#impMsg").innerHTML = `✅ Imported ${esc(f.files[0].name)}. XP ${r.before} → ${r.after}, ${r.ex} exercises solved.`; setTimeout(route, 1200); } catch (err) { $("#impMsg").textContent = "⚠️ " + err.message; } }; rd.readAsText(f.files[0]); } });
 
 document.addEventListener("click", async e => {
   const sb = e.target.closest(".symb");
   if (sb) { const t = $("textarea", sb.closest(".ed")); ins(t, sb.dataset.s.replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")); t.focus({ preventScroll: true }); return; }
   const b = e.target.closest("[data-act]"); if (!b) return; const a = b.dataset.act, ed = b.closest(".ed");
+  if (a.startsWith("td")) {
+    if (a === "tdlevel" || a === "tdpick") {
+      const blk = b.closest("#tdBlock"), sec = blk.dataset.sec, ui = S.ui[sec] || (S.ui[sec] = { lv: "easy", i: 0 });
+      if (a === "tdlevel") { ui.lv = b.dataset.lv; ui.i = Math.max(0, SEC_EX(sec, ui.lv).findIndex(x => !(S.ex[x.id] || {}).solved)); } else ui.i = +b.dataset.k;
+      save(); blk.outerHTML = todoBlock(BYID[sec]); fitAll($("#tdBlock")); return;
+    }
+    return tdAction(b);
+  }
+  if (a === "startfinal") { const s2 = BYID[(location.hash.match(/^#\/(.+)$/) || [])[1]]; startSet($("#finHost"), TD.theory[s2.id], { title: "Final Challenge", qid: "final:" + s2.id }); return; }
+  if (a === "prob") { const k = b.dataset.k; startSet($("#pcHost"), TD.prob[k], { title: k === "final" ? "Final Challenge" : "Calculation: " + k, qid: "pc:" + k }); return; }
+  if (a === "expcopy") { const t = $("#expTxt"); t.focus(); t.select(); t.setSelectionRange(0, t.value.length); let ok = false; try { ok = document.execCommand("copy"); } catch (e2) {} if (navigator.clipboard) { navigator.clipboard.writeText(t.value).then(() => { $("#expMsg").textContent = "✅ Copied. Paste it into Notes / a message to yourself."; }, () => { $("#expMsg").textContent = ok ? "✅ Copied." : "Select the text above and copy it by hand."; }); } else $("#expMsg").textContent = ok ? "✅ Copied." : "Select the text above and copy it by hand."; return; }
+  if (a === "expfile") { const blob = new Blob([JSON.stringify(S)], { type: "application/json" }), u = URL.createObjectURL(blob), l = document.createElement("a"); l.href = u; l.download = "dsc500-progress-" + new Date().toISOString().slice(0, 10) + ".json"; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); $("#expMsg").textContent = "⬇ File saved to your downloads."; return; }
+  if (a === "impgo") { try { const r = importCode($("#impTxt").value); $("#impMsg").innerHTML = `✅ Imported. XP ${r.before} → ${r.after}, ${r.ex} exercises solved.`; setTimeout(route, 1200); } catch (err) { $("#impMsg").textContent = "⚠️ " + err.message; } return; }
   if (a === "file") { e.preventDefault(); const pv = b.closest("p").nextElementSibling, f = b.dataset.f, lines = window.DATA[f].split("\n"); pv.innerHTML = `<pre class="out" style="white-space:pre">${esc(f)} (first ${Math.min(12, lines.length)} of ${lines.length} lines)\n\n${esc(lines.slice(0, 12).join("\n").slice(0, 1500))}</pre>`; }
   else if (a === "run") runEd(ed);
   else if (a === "reset") { const id = ed.dataset.id; delete S.edits[id]; save(); const t = $("textarea", ed); t.value = ORIG[id]; fit(t); $(".outbox", ed).innerHTML = ""; }
@@ -354,9 +592,10 @@ document.addEventListener("click", async e => {
   else if (a === "startquiz") { const s = BYID[(location.hash.match(/^#\/(.+)$/) || [])[1]]; runQuiz($("#quizHost"), s.quiz, { title: "Quick quiz", qid: "quiz:" + s.id, onExit: route }); $("#quizHost").scrollIntoView({ behavior: "smooth" }); }
   else if (a === "lesson") { const s = BYID.probability, l = s.lessons.find(x => x.id === b.dataset.l), host = $("#lessonHost"); runQuiz(host, l.cards, { title: l.title, qid: "lesson:" + l.id, onExit: route }); host.scrollIntoView({ behavior: "smooth" }); }
   else if (a === "preload") { const m = $("#preMsg"); m.innerHTML = '<div class="loading"><div class="spin"></div><span id="pm">Loading…</span></div>'; try { await PY.loadPkgs(["numpy", "pandas", "matplotlib", "scikit-learn", "beautifulsoup4"], t => { const x = $("#pm"); if (x) x.textContent = t; }); m.innerHTML = "✅ Everything is loaded and cached."; } catch (err) { m.textContent = "⚠️ " + err.message; } }
-  else if (a === "resetprog") { if (confirm("Reset XP, streak and completed lessons?")) { S.xp = 0; S.streak = 0; S.best = 0; S.done = {}; save(); chips(); route(); } }
+  else if (a === "resetprog") { if (confirm("Reset XP, streak and completed lessons?")) { try { localStorage.removeItem(KEY1); } catch (e) {} const e0 = S.edits, t0 = S.editTs; S = blank(); S.edits = e0; S.editTs = t0; save(); writeNow(); chips(); route(); } }
 });
-const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px'); setHH(); window.addEventListener('resize', setHH); window.__PY = PY; chips(); route();
+const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px'); setHH(); window.addEventListener('resize', setHH); window.__PY = PY;
+storageReady.then(() => { chips(); route(); if (location.hash && !$("#main h1")) route(); });
 setTimeout(() => PY.start().catch(() => {}), 600);
 })();
 </script>
