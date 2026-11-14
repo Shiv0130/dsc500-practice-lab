@@ -169,6 +169,12 @@ main{padding-bottom:100px}
 #liIn,#liReply{width:100%;box-sizing:border-box;font-size:16px;line-height:1.4;padding:10px;border:2px solid #d1d5db;border-radius:12px;resize:none;margin:4px 0;font-family:inherit}
 .chatclr{width:100%;min-height:44px;font-size:14px}
 .studylinks a{font-size:14px}
+/* ---- v3 small update: Watch lists ---- */
+.watch h4{margin:0 0 6px}.watchh{margin:10px 0 2px;font-size:15px}.watchlist{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.watchlink{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:12px;text-decoration:none;color:inherit;background:#fff}
+.watchlink:hover,.watchlink:focus-visible{border-color:#04aa6d}.watchlink .wn{flex:none;min-width:28px;text-align:center;font-size:18px;font-weight:700;color:#04aa6d}
+.watchlink .wt{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;line-height:1.3;font-size:15px}.watchlink .wt small{display:block;color:#b45309;font-size:13px;margin-top:2px}
+.watchlink .wl{flex:none;font-size:13px;background:#e9ecef;border-radius:10px;padding:3px 8px;white-space:nowrap}
 </style>
 </head><body>
 <header id="top">
@@ -1270,6 +1276,7 @@ function resourcesPage() {
   return `<h1>📚 Resources</h1><span class="scope">Everything for the paper, in one place</span>
   <div class="card"><h4>📄 PDFs (work offline once opened)</h4>${PDFS.map(p => `<div class="resrow"><div><b>${p[1]}</b><br><span class="muted">${p[3]}</span></div><div class="row"><button type="button" data-fx="pdfopen" data-k="${p[0]}">Open</button><button type="button" class="sec" data-fx="pdfdl" data-k="${p[0]}" data-n="${p[2]}">⬇ Download</button></div></div>`).join("")}<div id="pdfMsg" class="muted"></div></div>
   <div class="card"><h4>🔗 Study tools</h4><div class="links">${studyA(LINK_VAIA, "🎓 " + LINK_VAIA.label)}${studyA(LINK_NB, "📓 " + LINK_NB.label, "alt")}</div><p class="muted" style="margin:8px 0 0">Your own study set and notebook. Sign in there yourself: this site never stores any login. Each section page also has “Review keycards on Vaia” and “Quiz on NotebookLM” buttons.</p></div>
+  ${watchOrderHTML()}
   <div class="card"><h4>🤖 Talking to Liora in the chat</h4><p style="margin:0">A website cannot open a specific chat for you. Instead press <b>Ask Liora (copy)</b> on any exercise, or open the circle at the bottom right and use its <b>Chat</b> tab: it copies a ready-made prompt (question, your answer, progress). Paste it into the chat with Liora and ask for <b>FEEDBACK + MODEL ANSWER</b>.</p></div>
   <div class="card"><h4>🐍 Practise in your IDE (PyCharm)</h4><p class="muted" style="margin:0 0 8px">Starter .py files: the section's <b>Hard</b> exercises and <b>Final Challenge</b> as comments + TODO skeletons.</p><div class="resgrid">${STARTER_SECS.map(s => `<button type="button" class="sec" data-fx="starter" data-sec="${s}">⬇ ${s === "examboss" ? "👹 Exam Boss" : esc(SEC_NAMES[s])}</button>`).join("")}</div>
   <p class="muted" style="margin:10px 0 4px">Data files for your IDE (save next to the .py):</p><div class="resgrid">${DATA_FILES.map(f => `<button type="button" class="sec" data-fx="datadl" data-f="${f}">⬇ ${f}</button>`).join("")}</div></div>
@@ -1454,7 +1461,7 @@ window.__V3.askText = askText; window.__V3.nudges = nudges; window.__V3.askExamT
 const LINK_VAIA = { label: "Data Science 500 - Vaia", url: "https://app.vaia.com/studyset/69831503?trackingSource=studysets_library&tab=library&filter-by=69831503" };
 const LINK_NB = { label: "Data Science 500 (DSC500) - Gemini Notebook", url: "https://notebook.google.com/notebook/0d829214-6ee8-4a73-bad4-5218e4ea72d8" };
 const studyA = (L, text, cls) => `<a class="${cls || ""}" href="${L.url}" target="_blank" rel="noopener" data-study="${L === LINK_VAIA ? "vaia" : "nb"}">${text}</a>`;
-FX.studyLinks = (topic, id) => `<div class="links studylinks">${studyA(LINK_VAIA, "🎓 Review keycards on Vaia")}${studyA(LINK_NB, "📓 Quiz on NotebookLM", "alt")}</div><div class="muted" style="font-size:13px;margin:-2px 0 8px">Opens “${LINK_VAIA.label}” and “${LINK_NB.label}”. Look for: ${esc(String(topic || "").replace(/^\S+\s(?=[A-Za-z])/, ""))}.</div>`;
+FX.studyLinks = (topic, id) => `<div class="links studylinks">${studyA(LINK_VAIA, "🎓 Review keycards on Vaia")}${studyA(LINK_NB, "📓 Quiz on NotebookLM", "alt")}</div><div class="muted" style="font-size:13px;margin:-2px 0 8px">Opens “${LINK_VAIA.label}” and “${LINK_NB.label}”. Look for: ${esc(String(topic || "").replace(/^\S+\s(?=[A-Za-z])/, ""))}.</div>${watchHTML(id)}`;
 /* ----- chat store: its own IndexedDB so progress storage is never touched ----- */
 const CHAT = { msgs: [], db: null, ok: false, loaded: null };
 function chatOpenDB() { return new Promise((res, rej) => { if (!window.indexedDB) return rej(new Error("no IndexedDB")); const r = indexedDB.open("dsc500chat", 1); r.onupgradeneeded = () => r.result.createObjectStore("msgs", { keyPath: "id" }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
@@ -1496,6 +1503,34 @@ document.addEventListener("click", async e => {
   else if (f === "chatreplyadd") { const t = $("#liReply"), v = t.value.trim(); if (!v) { t.focus(); return; } CHAT.add({ ts: Date.now(), role: "li", text: v, page: pageName() }); t.value = ""; $("#liReplyBox").hidden = true; chatRefresh(); if (voiceOn()) speakText(v); }
   else if (f === "chatclear") { if (confirm("Delete the chat history on this device?")) { CHAT.clear(); chatRefresh(); } }
 });
+
+/* ===== v3 · part 8 (small update): "Watch" lists per section + "Watch in this order" on Resources. Plain links, new tab, no embeds ===== */
+const YT = "https://www.youtube.com/";
+const W = (title, len, url, kind, note) => ({ title, len, url, kind, note });
+const WATCH = {
+  "theory-process": [W("Steps in the Data Science Process (Short)", "47s", YT + "shorts/sPz9EH4DITo", "short"), W("Data Science in 5 minutes (case study)", "4:38", YT + "watch?v=A0ZOH2Wmxwo")],
+  "theory-ml": [W("Supervised vs Unsupervised vs Reinforcement", "1:52", YT + "watch?v=DZw1xnyHbVc"), W("ML explained with Netflix (Short)", "50s", YT + "shorts/7AnODvHiXNc", "short"), W("Telling Stories with Data", "4:47", YT + "watch?v=r5_34YnCmMY"), W("Instagram Reel on the 3 ML types", "Reel", "https://www.instagram.com/reel/DJgVBTUTaLq/", "ig"), W("TikTok: What is ML?", "47s", "https://www.tiktok.com/@lukebarousse/video/7169310785632718126", "tt")],
+  scraping: [W("BeautifulSoup on books.toscrape (Short)", "1:00", YT + "shorts/nc1hBwFd_tA", "short")],
+  debugging: [W("Python errors and debugging", "2:11", YT + "watch?v=RaopwRVB9oM")],
+  numpy: [W("NumPy mean, median, std", "4:38", YT + "watch?v=9iaOSMapwAc")],
+  probability: [W("Relative Frequency", "7:54", YT + "watch?v=MS6lnCTgTSw"), W("Addition rule (OR)", "10:42", YT + "watch?v=QE2uR6Z-NcU"), W("Independent and dependent events", "8:18", YT + "watch?v=uzkc-qNVoOk"), W("Conditional probability", "6:42", YT + "watch?v=6xPkG2pA-TU"), W("Bayes' Theorem", "5:05", YT + "watch?v=Zxm4Xxvzohk"), W("Law of Large Numbers", "1:07", YT + "watch?v=O50iZvblObs")],
+  pandas: [W("Pandas filtering chapter (from 36:32)", "from 36:32", YT + "watch?v=VXtjG_GzO7Q&t=2192s"), W("pd.to_datetime", "1:24", YT + "watch?v=Fx0J6lSO194")],
+  matplotlib: [W("Matplotlib subplots (Bro Code)", "6:54", YT + "watch?v=KFMs_ZZNgmo")],
+  regression: [W("Linear Regression in under 50s", "59s", YT + "watch?v=iWFBiUGXlgU", "short"), W("train_test_split explained", "6:33", YT + "watch?v=fwY9Qv96DJY", "", "skip model.score, R² is out of scope")]
+};
+const WATCH_KEY = id => /^pandas\d/.test(id) ? "pandas" : id;
+const WATCH_ICON = { short: "📱", ig: "📸", tt: "🎵", "": "▶️" };
+const watchRow = (w, n) => `<li><a class="watchlink" href="${w.url}" target="_blank" rel="noopener noreferrer"><span class="wn">${n || WATCH_ICON[w.kind || ""]}</span><span class="wt"><b>${esc(w.title)}</b>${w.note ? `<small class="wnote">Note: ${esc(w.note)}</small>` : ""}</span><span class="wl">${esc(w.len)}</span></a></li>`;
+function watchHTML(id) {
+  const list = id === "theory" ? [...WATCH["theory-process"], ...WATCH["theory-ml"]] : WATCH[WATCH_KEY(id)]; if (!list || !list.length) return "";
+  return `<div class="watch card"><h4>▶️ Watch <span class="muted" style="font-weight:400;font-size:13px">(opens in a new tab)</span></h4><ol class="watchlist">${list.map(w => watchRow(w)).join("")}</ol></div>`;
+}
+const WATCH_ORDER = [["🧭 Data Science Process", "theory-process"], ["🤖 Machine Learning and communicating results", "theory-ml"], ["🕸️ Web scraping", "scraping"], ["🐞 Debugging", "debugging"], ["🔢 NumPy", "numpy"], ["🎲 Probability", "probability"], ["🐼 Pandas", "pandas"], ["📊 Matplotlib", "matplotlib"], ["📈 Regression", "regression"]];
+function watchOrderHTML() {
+  let n = 0;
+  return `<div class="card watch"><h4>▶️ Watch in this order</h4><p class="muted" style="margin:0 0 6px">Short ones first in each topic. Every link opens in a new tab.</p>${WATCH_ORDER.map(([name, k]) => `<h5 class="watchh">${name}</h5><ol class="watchlist" start="${n + 1}">${WATCH[k].map(w => watchRow(w, ++n)).join("")}</ol>`).join("")}</div>`;
+}
+window.__V3.watch = { WATCH, WATCH_ORDER };
 
 
 const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px'); setHH(); window.addEventListener('resize', setHH); window.__PY = PY;
