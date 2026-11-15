@@ -628,12 +628,54 @@ function startSet(host, items, o) { runQuiz(host, items, Object.assign({ onExit:
 /* ---------- progress dashboard + export / import ---------- */
 const SEC_NAMES = Object.fromEntries(SECS.map(s => [s.id, s.icon + " " + s.title]));
 const CODE_SECS = ["scraping", "debugging", "numpy", "pandas1", "pandas2", "pandas3", "matplotlib", "regression"];
-function exportCode() { return "DSC500LAB1:" + btoa(unescape(encodeURIComponent(JSON.stringify(S)))); }
-function importCode(txt) {
-  txt = String(txt || "").trim(); let o;
-  try { if (txt.startsWith("DSC500LAB1:")) o = JSON.parse(decodeURIComponent(escape(atob(txt.slice(11).replace(/\s/g, ""))))); else o = JSON.parse(txt); } catch (e) { throw new Error("That is not a valid progress code or file."); }
-  const inc = normalize(o); if (!(inc.xp || Object.keys(inc.ex).length || Object.keys(inc.done).length || Object.keys(inc.edits).length)) throw new Error("The code has no progress inside it.");
-  const before = S.xp; S = merge(S, inc); save(); writeNow(); chips(); return { before, after: S.xp, ex: Object.values(S.ex).filter(x => x.solved).length };
+function exportCode() { return "DSC500LAB1:" + btoa(unescape(encodeURIComponent(JSON.stringify(S)))); }  // plain code (works on every version)
+/* ---- sync v2: shorter gzip code, file export, and a forgiving importer ---- */
+const SYNC2 = "DSC500LAB2:";
+const bytesToB64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
+const b64ToBytes = b64 => { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+const streamBytes = async (u8, T) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new T("gzip"))).arrayBuffer());
+async function exportCodeShort() {  // gzip + base64 + end marker with length (so a cut-off code is detected); falls back to the plain code
+  try {
+    if (typeof CompressionStream === "undefined") return exportCode();
+    const u8 = await streamBytes(new TextEncoder().encode(JSON.stringify(S)), CompressionStream);
+    const b64 = bytesToB64(u8).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return SYNC2 + b64 + "." + b64.length;
+  } catch (e) { return exportCode(); }
+}
+const syncFileName = () => { const d = new Date(), z = n => String(n).padStart(2, "0"); return "dsc500_progress_" + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + ".json"; };
+const syncFileText = () => JSON.stringify(S);  // plain JSON of ALL progress; old and new versions can both load it
+function syncClean(t) { return String(t || "").replace(/[\u200B-\u200F\u2060\uFEFF\u00A0\u202A-\u202E]/g, "").replace(/[\u201C\u201D\u2018\u2019\u00AB\u00BB]/g, "").replace(/\s+/g, ""); }
+const b64Try = c => { c = c.replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, ""); if (c.length % 4 === 1) return null; return b64ToBytes(c + "=".repeat((4 - c.length % 4) % 4)); };
+const utf8Try = u8 => new TextDecoder("utf-8", { fatal: true }).decode(u8);
+async function gunzipTry(u8) { if (typeof DecompressionStream === "undefined") throw new Error("This browser cannot open the short code. Use the sync FILE instead (Download sync file on the other device)."); return utf8Try(await streamBytes(u8, DecompressionStream)); }
+async function parseSync(raw) {  // text (code, wrapped code, file contents, or JSON) -> progress object. Throws a clear Error.
+  const t0 = String(raw || "").replace(/^\uFEFF/, ""); const pm = /DSC500LAB([12]):/i.exec(t0);
+  if (!pm && /^\s*\{/.test(t0)) { try { return JSON.parse(t0); } catch (e) { throw new Error("This file looks damaged (it is cut off or edited). Make a fresh sync file and try again."); } }
+  let body = syncClean(pm ? t0.slice(pm.index + pm[0].length) : t0); if (!body) throw new Error("Nothing to import yet. Paste the code first, or choose the sync file.");
+  let isShort = false; const ver = pm ? pm[1] : "?", noStart = !pm, tail = n => body.length > n ? " (" + body.length.toLocaleString() + " characters were pasted)" : "";
+  if (ver === "2" || noStart) {  // short code: base64url . length
+    const m = /^([A-Za-z0-9_\-+\/=]+)\.(\d+)/.exec(body);
+    if (m) { if (m[1].length !== +m[2]) throw new Error("The code is incomplete: " + m[1].length.toLocaleString() + " of " + (+m[2]).toLocaleString() + " characters arrived. Use Download sync file instead, it cannot be cut off."); body = m[1]; isShort = true; }
+    else if (ver === "2") throw new Error("The code is cut off at the end" + tail(0) + ". Long codes get shortened by phones and chat apps. Use Download sync file and Load sync file instead.");
+  }
+  const tries = []; tries.push(body); if (!isShort) for (let k = 1; k <= 60 && body.length - k > 100; k++) tries.push(body.slice(0, body.length - k));  // tolerate stray words after the code
+  let sawB64 = false, gz = false;
+  for (const c of tries) {
+    if (!/^[A-Za-z0-9_\-+\/=]+$/.test(c)) continue; let u8 = null; try { u8 = b64Try(c); } catch (e) { u8 = null; } if (!u8 || !u8.length) continue; sawB64 = true;
+    try {
+      let txt; if (u8[0] === 0x1f && u8[1] === 0x8b) { gz = true; txt = await gunzipTry(u8); } else txt = utf8Try(u8);
+      const o = JSON.parse(txt); if (o && typeof o === "object") return o;
+    } catch (e) { if (/cannot open the short code/.test(e.message)) throw e; }
+  }
+  if (noStart && body.length < 200) throw new Error("That is not a valid progress code or file.");
+  if (noStart && sawB64) throw new Error("That text starts in the middle of the code (the beginning was lost). Copy the WHOLE code again, or use the sync file.");
+  throw new Error(sawB64 ? "The code is cut off or has changed characters" + tail(0) + ". Long codes get shortened by phones and chat apps. Use Download sync file and Load sync file instead." : "That is not a valid progress code or file.");
+}
+async function importCode(txt) {
+  const o = await parseSync(txt);
+  const inc = normalize(o); if (!(inc.xp || Object.keys(inc.ex).length || Object.keys(inc.done).length || Object.keys(inc.edits).length || (inc.mock && inc.mock.start))) throw new Error("The code has no progress inside it.");
+  const before = S.xp; S = merge(S, inc); S.ts = Date.now(); save(); writeNow(); chips();
+  return { before, after: S.xp, ex: Object.values(S.ex).filter(x => x && x.solved).length, done: Object.keys(S.done).length, edits: Object.keys(S.edits).length };
 }
 function progressPage() {
   const all = TD.ex, solved = all.filter(e => (S.ex[e.id] || {}).solved), bosses = all.filter(e => e.level === "boss"), eb = S.ex["exam-boss"] || {};
@@ -729,7 +771,7 @@ function route() {
 $("#menuBtn").addEventListener("click", () => document.body.classList.toggle("nav-open"));
 $("#scrim").addEventListener("click", () => document.body.classList.remove("nav-open"));
 window.addEventListener("hashchange", route);
-document.addEventListener("change", e => { const f = e.target; if (f && f.id === "impFile" && f.files[0]) { const rd = new FileReader(); rd.onload = () => { try { const r = importCode(rd.result); $("#impMsg").innerHTML = `✅ Imported ${esc(f.files[0].name)}. XP ${r.before} → ${r.after}, ${r.ex} exercises solved.`; setTimeout(route, 1200); } catch (err) { $("#impMsg").textContent = "⚠️ " + err.message; } }; rd.readAsText(f.files[0]); } });
+document.addEventListener("change", e => { const f = e.target; if (f && f.id === "impFile" && f.files[0]) { const rd = new FileReader(); rd.onload = async () => { try { const r = await importCode(rd.result); $("#impMsg").innerHTML = `✅ Imported ${esc(f.files[0].name)}. XP ${r.before} → ${r.after}, ${r.ex} exercises solved.`; setTimeout(route, 1200); } catch (err) { $("#impMsg").textContent = "⚠️ " + err.message; } }; rd.readAsText(f.files[0]); } });
 
 document.addEventListener("click", async e => {
   const sb = e.target.closest(".symb");
@@ -747,7 +789,7 @@ document.addEventListener("click", async e => {
   if (a === "prob") { const k = b.dataset.k; startSet($("#pcHost"), TD.prob[k], { title: k === "final" ? "Final Challenge" : "Calculation: " + k, qid: "pc:" + k }); return; }
   if (a === "expcopy") { const t = $("#expTxt"); t.focus(); t.select(); t.setSelectionRange(0, t.value.length); let ok = false; try { ok = document.execCommand("copy"); } catch (e2) {} if (navigator.clipboard) { navigator.clipboard.writeText(t.value).then(() => { $("#expMsg").textContent = "✅ Copied. Paste it into Notes / a message to yourself."; }, () => { $("#expMsg").textContent = ok ? "✅ Copied." : "Select the text above and copy it by hand."; }); } else $("#expMsg").textContent = ok ? "✅ Copied." : "Select the text above and copy it by hand."; return; }
   if (a === "expfile") { const blob = new Blob([JSON.stringify(S)], { type: "application/json" }), u = URL.createObjectURL(blob), l = document.createElement("a"); l.href = u; l.download = "dsc500-progress-" + new Date().toISOString().slice(0, 10) + ".json"; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); $("#expMsg").textContent = "⬇ File saved to your downloads."; return; }
-  if (a === "impgo") { try { const r = importCode($("#impTxt").value); $("#impMsg").innerHTML = `✅ Imported. XP ${r.before} → ${r.after}, ${r.ex} exercises solved.`; setTimeout(route, 1200); } catch (err) { $("#impMsg").textContent = "⚠️ " + err.message; } return; }
+  if (a === "impgo") { try { const r = await importCode($("#impTxt").value); $("#impMsg").innerHTML = `✅ Imported. XP ${r.before} → ${r.after}, ${r.ex} exercises solved.`; setTimeout(route, 1200); } catch (err) { $("#impMsg").textContent = "⚠️ " + err.message; } return; }
   if (a === "file") { e.preventDefault(); const pv = b.closest("p").nextElementSibling, f = b.dataset.f, lines = window.DATA[f].split("\n"); pv.innerHTML = `<pre class="out" style="white-space:pre">${esc(f)} (first ${Math.min(12, lines.length)} of ${lines.length} lines)\n\n${esc(lines.slice(0, 12).join("\n").slice(0, 1500))}</pre>`; }
   else if (a === "run") runEd(ed);
   else if (a === "reset") { const id = ed.dataset.id; delete S.edits[id]; save(); const t = $("textarea", ed); t.value = ORIG[id]; fit(t); $(".outbox", ed).innerHTML = ""; }
@@ -2055,28 +2097,40 @@ FX.boot.push(() => applyTheme(getTheme(), false));
 const prevNav = FX.navExtra; FX.navExtra = () => prevNav() + `<h6>Appearance</h6><div style="padding:0 12px 8px">${themeGrid()}</div>`;
 /* ----- Sync devices ----- */
 function syncCard() {
-  return `<div class="card synccard" id="syncCard"><h4>🔄 Sync devices</h4><p style="margin:0 0 8px">Your progress lives in each browser separately: <b>Export</b> on one device, <b>Import</b> on the other, and it merges (nothing is lost).</p>
-  <div class="row"><button type="button" data-fx="syncexp">📋 Export (copy code)</button><button type="button" class="sec" data-fx="syncimp">📥 Import (paste)</button></div>
-  <div id="syBox" hidden><textarea id="syTxt" rows="3" placeholder="Paste the code here (starts with DSC500LAB1:)" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" aria-label="Paste the sync code"></textarea><div class="row"><button type="button" data-fx="syncgo">⬇ Merge this code</button><button type="button" class="sec" data-fx="synccancel">Cancel</button></div></div>
+  return `<div class="card synccard" id="syncCard"><h4>🔄 Sync devices (laptop ↔ phone)</h4>
+  <p style="margin:0 0 6px">Progress is stored in each browser separately. Moving it <b>merges</b> both sides, so nothing is lost on either device.</p>
+  <ol class="sysSteps" style="margin:0 0 8px;padding-left:20px;line-height:1.5"><li><b>On the device that has your progress:</b> tap <b>⬇ Download sync file</b> (or <b>📤 Share file</b> on a phone).</li><li><b>Send the file</b> to your other device (WhatsApp to yourself, email, Google Drive, AirDrop).</li><li><b>On the other device:</b> open this page → <b>📂 Load sync file</b> → pick the file. Done: the numbers update straight away.</li></ol>
+  <div class="row"><button type="button" data-fx="syncfile">⬇ Download sync file</button>${navigator.share && navigator.canShare ? '<button type="button" class="sec" data-fx="syncshare">📤 Share file</button>' : ""}<label class="btn sec filebtn">📂 Load sync file<input id="syFile" type="file" accept=".json,.txt,application/json,text/plain,*/*"></label></div>
+  <details style="margin-top:6px"><summary class="muted" style="cursor:pointer">No file? Use a text code instead</summary>
+  <div class="row"><button type="button" class="sec" data-fx="syncexp">📋 Copy code</button><button type="button" class="sec" data-fx="syncimp">📥 Paste code</button></div>
+  <div id="syBox" hidden><textarea id="syTxt" rows="3" placeholder="Paste the whole code here (starts with DSC500LAB)" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" aria-label="Paste the sync code"></textarea><div class="row"><button type="button" data-fx="syncgo">⬇ Merge this code</button><button type="button" class="sec" data-fx="synccancel">Cancel</button></div></div></details>
   <div id="syMsg" class="muted" role="status" aria-live="polite" style="margin-top:6px"></div></div>`;
 }
 FX.homeTop = () => syncCard(); const prevHome = FX.homeExtra; FX.homeExtra = () => prevHome() + themeCard();
 const prevProg = FX.progressExtra; FX.progressExtra = () => syncCard() + prevProg();
 const solvedCount = () => Object.values(S.ex).filter(x => x && x.solved).length;
-function syncMerge(text) {
-  const b = { xp: S.xp, n: solvedCount() }; const r = importCode(text), n2 = solvedCount();
-  return `✅ Merged. XP ${b.xp} → ${r.after}, solved exercises ${b.n} → ${n2}. Now tap Export here and Import on the other device too, so both match.`;
+async function syncMerge(text) {
+  const b = { xp: S.xp, n: solvedCount(), d: Object.keys(S.done).length, e: Object.keys(S.edits).length }; const r = await importCode(text), n2 = solvedCount();
+  return `✅ Merged. XP ${b.xp} → ${r.after}, solved exercises ${b.n} → ${n2}, lessons/quizzes done ${b.d} → ${r.done}, saved code ${b.e} → ${r.edits}. Saved on this device. To make the other device match too, do the same in the other direction.`;
 }
+const syncAfter = () => { try { chips(); } catch (e) {} setTimeout(route, 1200); };  // re-draw the page so the new numbers show immediately
+const syncSaveFile = () => { const blob = new Blob([syncFileText()], { type: "application/json" }), u = URL.createObjectURL(blob), l = document.createElement("a"); l.href = u; l.download = syncFileName(); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return l.download; };
+document.addEventListener("change", async e => {
+  const f = e.target; if (!f || f.id !== "syFile" || !f.files[0]) return; const msg = $("#syMsg"), file = f.files[0]; msg.textContent = "Reading " + file.name + "…";
+  try { msg.textContent = await syncMerge(await file.text()); syncAfter(); } catch (er) { msg.textContent = "⚠️ " + er.message + " Nothing was changed."; } f.value = "";
+});
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-fx]"); if (!b) return; const f = b.dataset.fx, msg = $("#syMsg");
   if (f === "theme") { applyTheme(b.dataset.t, true); toast && toast("🎨 " + (THEME_LIST.find(x => x[0] === b.dataset.t) || [0, ""])[1] + " theme"); }
-  else if (f === "syncexp") { const code = exportCode(), ok = await copyText(code); msg.textContent = ok ? `✅ Copied (${code.length.toLocaleString()} characters). On your other device open Home or Progress → Sync devices → Import, then paste.` : "⚠️ Couldn't copy automatically. Open My progress → Export and copy the code from the box there."; if (!ok) location.hash = "#/progress"; }
+  else if (f === "syncfile") { const n = syncSaveFile(); msg.textContent = `✅ Saved ${n} (${(syncFileText().length / 1024).toFixed(0)} KB, all your progress). Find it in Downloads / Files, send it to your other device, then use Load sync file there.`; }
+  else if (f === "syncshare") { try { const file = new File([syncFileText()], syncFileName(), { type: "application/json" }); await navigator.share({ files: [file], title: "DSC500 progress" }); msg.textContent = "✅ Shared. On the other device use Load sync file."; } catch (er) { msg.textContent = er && er.name === "AbortError" ? "Share cancelled." : "⚠️ Sharing is not available here. Use Download sync file instead."; } }
+  else if (f === "syncexp") { const code = await exportCodeShort(), ok = await copyText(code); msg.textContent = ok ? `✅ Copied (${code.length.toLocaleString()} characters). Paste the WHOLE thing on your other device (Paste code). If it is cut off, use the sync file instead.` : "⚠️ Couldn't copy automatically. Use Download sync file instead."; }
   else if (f === "syncimp") {
     let txt = ""; try { if (navigator.clipboard && navigator.clipboard.readText) txt = (await navigator.clipboard.readText()) || ""; } catch (er) {}
-    if (/DSC500LAB1:/.test(txt) || /^\s*\{/.test(txt)) { try { msg.textContent = syncMerge(txt.slice(txt.indexOf("DSC500LAB1:") >= 0 ? txt.indexOf("DSC500LAB1:") : 0)); setTimeout(route, 1800); } catch (er) { msg.textContent = "⚠️ " + er.message; $("#syBox").hidden = false; $("#syTxt").value = txt; } }
-    else { $("#syBox").hidden = false; $("#syTxt").focus(); msg.textContent = "Paste the code from your other device, then tap Merge."; }
+    if (/DSC500LAB[12]:/.test(txt) || /^\s*\{/.test(txt)) { try { msg.textContent = await syncMerge(txt); syncAfter(); } catch (er) { msg.textContent = "⚠️ " + er.message + " Nothing was changed."; $("#syBox").hidden = false; $("#syTxt").value = txt; } }
+    else { $("#syBox").hidden = false; $("#syTxt").focus(); msg.textContent = "Paste the whole code from your other device, then tap Merge."; }
   }
-  else if (f === "syncgo") { try { msg.textContent = syncMerge($("#syTxt").value); setTimeout(route, 1800); } catch (er) { msg.textContent = "⚠️ " + er.message + " Nothing was changed."; } }
+  else if (f === "syncgo") { try { msg.textContent = await syncMerge($("#syTxt").value); syncAfter(); } catch (er) { msg.textContent = "⚠️ " + er.message + " Nothing was changed."; } }
   else if (f === "synccancel") { $("#syTxt").value = ""; $("#syBox").hidden = true; msg.textContent = ""; }
 });
 window.__V3.theme = { getTheme, applyTheme, THEME_LIST };
