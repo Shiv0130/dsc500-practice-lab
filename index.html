@@ -210,6 +210,33 @@ textarea::placeholder,input::placeholder{color:var(--muted,#566170);opacity:1}
 .sv-f-e5e7eb{fill:var(--bg-e5e7eb,#e5e7eb)}.sv-f-1f2933{fill:var(--text,#1f2933)}.sv-f-475569{fill:var(--muted,#475569)}.sv-f-282a35{fill:var(--text,#282a35)}.sv-s-64748b{stroke:var(--muted,#64748b)}
 .sv-f-2563eb{fill:var(--ind-blue,#2563eb)}.sv-f-04aa6d{fill:var(--accent,#04aa6d)}.sv-f-16a34a{fill:var(--ind-green,#16a34a)}.sv-f-15803d{fill:var(--ind-green,#15803d)}.sv-f-f3e8d3{fill:#f3e8d3}.sv-s-a16207{stroke:#a16207}
 .ex .hd small{opacity:1;background:transparent;border:1px solid currentColor}
+
+/* ---- interactive Mock Exam (#/mock) — MAD700-style layout, theme-aware ---- */
+.mock-bar{position:sticky;top:var(--hh,58px);z-index:8;background:var(--surface,#fff);border-bottom:1px solid var(--border,#d9dee6);padding:10px 16px}
+.mock-bar-in{max-width:780px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+#mockTimer{font:600 1.5rem/1 ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;color:var(--text,#16202e)}
+#mockTimer.low{color:#b3261e}
+html[data-theme=dark] #mockTimer.low,html[data-theme=dracula] #mockTimer.low,html[data-theme=futuristic] #mockTimer.low,html[data-theme=contrast] #mockTimer.low{color:#ff8a80}
+.mock-wrap{max-width:780px;margin:0 auto;padding:16px 12px 24px}
+h2.mock-sec{font-size:1.05rem;margin:28px 0 4px;padding-bottom:6px;border-bottom:2px solid var(--accent,#1f5fbf);letter-spacing:.02em}
+.mock-qh{display:flex;justify-content:space-between;gap:12px;font-weight:600;margin-bottom:6px;align-items:flex-start}
+.mock-marks{color:var(--muted,#5b6778);font-weight:500;white-space:nowrap}
+.mock-stem{margin:0 0 8px}
+textarea.mock-ans{display:block;width:100%;min-height:170px;margin-top:10px;padding:10px;border:1px solid var(--border,#d9dee6);border-radius:6px;background:var(--bg-f6f8fa,#f6f8fa);color:var(--text,#16202e);font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;resize:vertical;box-sizing:border-box}
+textarea.mock-ans:disabled{opacity:.75}
+pre.mock-code{white-space:pre;word-break:normal;max-height:380px;overflow:auto;background:var(--bg-f6f8fa,#f6f8fa);border:1px solid var(--border,#d9dee6);border-radius:6px;padding:12px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;-webkit-overflow-scrolling:touch}
+pre.mock-export{white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;background:var(--bg-f6f8fa,#f6f8fa);border:1px solid var(--border,#d9dee6);border-radius:6px;padding:12px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.mock-row{display:flex;justify-content:space-between;gap:12px;margin-top:18px;flex-wrap:wrap}
+.mock-tblwrap{overflow-x:auto;margin:8px 0}
+table.mock-t,table.mock-rev{width:100%;border-collapse:collapse;font-size:14px}
+table.mock-t th,table.mock-t td,table.mock-rev th,table.mock-rev td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--border,#d9dee6)}
+table.mock-t th{background:var(--bg-e7f6ef,#e7f6ef)}
+.mock-yes{color:var(--ind-green,#1b7a43);font-weight:600}.mock-no{color:#b3261e;font-weight:600}
+#mockOv{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:80}
+#mockOv .card{max-width:420px;margin:0}
+body.mock-page main{padding-top:0}
+a.mock-hl{display:flex;gap:12px;align-items:center;border:2px solid var(--accent,#04aa6d)!important;background:var(--surface,#fff);box-shadow:0 0 0 3px rgba(4,170,109,.12)}
+@media(max-width:480px){#mockTimer{font-size:1.25rem}.mock-qh{flex-direction:column;gap:2px}}
 </style>
 </head><body>
 <header id="top">
@@ -230,12 +257,20 @@ const DATA_FILES = ["books_page1.html", "books_sales.csv", "practice_students.cs
 
 /* ---------- saved progress: IndexedDB (main) + localStorage mirror (fallback) ---------- */
 const KEY1 = "dsc500lab.v1", KEY2 = "dsc500lab.v2", DBN = "dsc500lab";
-const blank = () => ({ v: 2, ts: 0, xp: 0, streak: 0, best: 0, done: {}, edits: {}, editTs: {}, ex: {}, scores: {}, ui: {}, exam: { cur: null, hist: [] }, liora: {} });  // v3 only ADDS keys: the v2 schema and keys are unchanged
+const blankMock = () => ({ start: null, finish: null, submitted: false, auto: false, view: "intro", warned: false });
+const blank = () => ({ v: 2, ts: 0, xp: 0, streak: 0, best: 0, done: {}, edits: {}, editTs: {}, ex: {}, scores: {}, ui: {}, exam: { cur: null, hist: [] }, liora: {}, mock: blankMock() });  // v3 only ADDS keys: the v2 schema and keys are unchanged
 function normalize(o) {  // accepts v1 (old keys) and v2 objects; always returns a complete v2 object
   const n = blank(); if (!o || typeof o !== "object") return n;
   n.xp = +o.xp || 0; n.streak = +o.streak || 0; n.best = +o.best || 0; n.ts = +o.ts || 0;
   ["done", "edits", "editTs", "ex", "scores", "ui", "liora"].forEach(k => { if (o[k] && typeof o[k] === "object") n[k] = o[k]; });
   if (o.exam && typeof o.exam === "object") n.exam = { cur: o.exam.cur || null, hist: Array.isArray(o.exam.hist) ? o.exam.hist : [] };
+  if (o.mock && typeof o.mock === "object") {
+    n.mock = {
+      start: o.mock.start || null, finish: o.mock.finish || null,
+      submitted: !!o.mock.submitted, auto: !!o.mock.auto, warned: !!o.mock.warned,
+      view: o.mock.view || (o.mock.submitted ? "sum" : o.mock.start ? "test" : "intro")
+    };
+  }
   return n;
 }
 function mergeEx(x, y) {  // generic: numbers -> max, flags -> OR, nested objects / text -> the newer record; nothing is ever dropped
@@ -265,6 +300,11 @@ function merge(a, b) {  // never loses anything: max XP, union of done, newest c
   m.liora = Object.assign({}, a.liora, b.liora, nw.liora);
   const seen = new Set(), hist = []; [...a.exam.hist, ...b.exam.hist].forEach(h => { const key = h && h.ts; if (key && !seen.has(key)) { seen.add(key); hist.push(h); } });
   m.exam = { cur: nw.exam.cur || (a.exam.cur || b.exam.cur) || null, hist: hist.sort((p, q) => p.ts - q.ts) };
+  const ma = a.mock || blankMock(), mb = b.mock || blankMock();
+  if (!ma.start) m.mock = mb.start ? mb : (nw.mock || blankMock());
+  else if (!mb.start) m.mock = ma;
+  else if (ma.start === mb.start) m.mock = (ma.submitted || mb.submitted) ? (ma.submitted ? ma : mb) : nw.mock || ma;
+  else m.mock = ma.start >= mb.start ? ma : mb;
   new Set([...Object.keys(a.scores), ...Object.keys(b.scores)]).forEach(k => { const x = a.scores[k], y = b.scores[k]; m.scores[k] = !x ? y : !y ? x : ((x.ok / x.total) >= (y.ok / y.total) ? x : y); });
   return m;
 }
@@ -715,7 +755,7 @@ document.addEventListener("click", async e => {
   else if (a === "startquiz") { const s = BYID[(location.hash.match(/^#\/(.+)$/) || [])[1]]; runQuiz($("#quizHost"), s.quiz, { title: "Quick quiz", qid: "quiz:" + s.id, onExit: route }); $("#quizHost").scrollIntoView({ behavior: "smooth" }); }
   else if (a === "lesson") { const s = BYID.probability, l = s.lessons.find(x => x.id === b.dataset.l), host = $("#lessonHost"); runQuiz(host, l.cards, { title: l.title, qid: "lesson:" + l.id, onExit: route }); host.scrollIntoView({ behavior: "smooth" }); }
   else if (a === "preload") { const m = $("#preMsg"); m.innerHTML = '<div class="loading"><div class="spin"></div><span id="pm">Loading…</span></div>'; try { await PY.loadPkgs(["numpy", "pandas", "matplotlib", "scikit-learn", "beautifulsoup4"], t => { const x = $("#pm"); if (x) x.textContent = t; }); m.innerHTML = "✅ Everything is loaded and cached."; } catch (err) { m.textContent = "⚠️ " + err.message; } }
-  else if (a === "resetprog") { if (confirm("Reset XP, streak and completed lessons?")) { try { localStorage.removeItem(KEY1); } catch (e) {} const e0 = S.edits, t0 = S.editTs; S = blank(); S.edits = e0; S.editTs = t0; save(); writeNow(); chips(); route(); } }
+  else if (a === "resetprog") { if (confirm("Reset XP, streak and completed lessons?")) { try { localStorage.removeItem(KEY1); } catch (e) {} const e0 = S.edits, t0 = S.editTs, m0 = S.mock; S = blank(); S.edits = e0; S.editTs = t0; S.mock = m0; save(); writeNow(); chips(); route(); } }
 });
 /* ===== v3 · part 1: skip/peek tracking, shared answer parts, Theory Prep, worked probability ===== */
 const TH = TD.th || [], THX = Object.fromEntries(TH.map(e => [e.id, e])), PPS = TD.pp || [], PPX = Object.fromEntries(PPS.map(p => [p.id, p]));
@@ -902,7 +942,7 @@ document.addEventListener("click", e => {
   }
 });
 document.addEventListener("input", e => {});
-FX.homeExtra = () => `<div class="note"><b>New in v3.</b> <b>Theory Prep</b> (easy / medium / hard), <b>show-your-working probability</b> with a working pad, a timed <b>Exam mode</b> (3 hours), <b>Liora</b> the study buddy (the circle at the bottom right: nudges, voice, a Chat tab, Export to .py, Ask Liora), <b>Resources</b> (PDFs) and <b>My files</b>. Your old progress is kept. <span class="muted">Mock exam: Sunday 15 Nov, 07:30.</span></div><div class="home-grid"><a href="#/theory"><span style="font-size:26px">🧠</span><span><b>Theory Prep</b><small>process · case study · ML types · choosing · charts</small></span></a><a href="#/exam"><span style="font-size:26px">⏱</span><span><b>Exam mode</b><small>3 hours, 100 marks, auto-marked</small></span></a><a href="#/resources"><span style="font-size:26px">📚</span><span><b>Resources</b><small>cheatsheet, master quiz PDFs, NotebookLM, Vaia</small></span></a><a href="#/files"><span style="font-size:26px">🗂</span><span><b>My files</b><small>upload PDFs, images, .py, .csv</small></span></a></div><div class="links studylinks">${studyA(LINK_VAIA, "🎓 " + LINK_VAIA.label)}${studyA(LINK_NB, "📓 " + LINK_NB.label, "alt")}</div>`;
+FX.homeExtra = () => `<div class="note"><b>New in v3.</b> <b>Theory Prep</b> (easy / medium / hard), <b>show-your-working probability</b> with a working pad, a timed <b>Exam mode</b> (3 hours), <b>Liora</b> the study buddy (the circle at the bottom right: nudges, voice, a Chat tab, Export to .py, Ask Liora), <b>Resources</b> (PDFs) and <b>My files</b>. Your old progress is kept. <span class="muted">Open <a href="#/mock">Mock Exam</a> when you are ready to sit the 3-hour paper.</span></div><div class="home-grid"><a class="mock-hl" href="#/mock"><span style="font-size:26px">📝</span><span><b>Mock Exam</b><small>Sunday paper · 3 hours · 100 marks · export for Liora</small></span></a><a href="#/theory"><span style="font-size:26px">🧠</span><span><b>Theory Prep</b><small>process · case study · ML types · choosing · charts</small></span></a><a href="#/exam"><span style="font-size:26px">⏱</span><span><b>Exam mode</b><small>3 hours, 100 marks, auto-marked</small></span></a><a href="#/resources"><span style="font-size:26px">📚</span><span><b>Resources</b><small>cheatsheet, master quiz PDFs, NotebookLM, Vaia</small></span></a><a href="#/files"><span style="font-size:26px">🗂</span><span><b>My files</b><small>upload PDFs, images, .py, .csv</small></span></a></div><div class="links studylinks">${studyA(LINK_VAIA, "🎓 " + LINK_VAIA.label)}${studyA(LINK_NB, "📓 " + LINK_NB.label, "alt")}</div>`;
 
 /* ---------- worked probability (Brilliant style): keyword → formula → substitute → answer ---------- */
 const PRULE = Object.fromEntries((TD.rules || []).map(r => [r.id, r]));
@@ -1034,8 +1074,408 @@ function finishPP(p, st) {
 document.addEventListener("input", e => { const t = e.target; if (t.dataset && t.dataset.fx === "ppin") { const st2 = t.closest(".pstep"), host = t.closest("[data-ppx]"), p = PPX[host.dataset.ppx], s = ppState(p).steps[st2.dataset.k] || (ppState(p).steps[st2.dataset.k] = {}); s.v = t.value; save(); } });
 document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset && e.target.dataset.fx === "ppin") { const b = $('[data-fx=ppchk]', e.target.closest(".pstep")); if (b) b.click(); } });
 
+/* ===== v3 · part 10: interactive Mock Exam at #/mock (MAD700 layout, DSC500 content, no memo) ===== */
+const MOCK_MS = 3 * 60 * 60 * 1000;
+const MOCK_FMT_BLANKS = "Answer format: write one answer per line as (1) ..., (2) ... for each blank. For (c), also write the three numeric results and whether you divided by n or by n − 1. For (d) and (e), write the code and the values.";
+const MOCK_FMT_TODO = "Answer format: write one answer per line as TODO 1: ..., TODO 2: ... for each TODO (write the full code the TODO asks for). Then, for the debugging snippets, write (a) ..., (b) ..., (c) ... naming the error and the corrected line.";
+const MOCK_FMT_REG = "Answer format: for (a), write the slope, its meaning, and the expected increase. For (b), write one answer per line as (1) ..., (2) ... for each blank.";
+const MOCK_CODE_21 = `import pandas as pd
+
+# (a) Load the CSV file and display the last 5 rows
+df = pd.read_csv('____(1)____')
+print(df.____(2)____(____(3)____))
+
+# (b) Group by department and calculate the average spend
+avg_spend = df.groupby('____(4)____')['____(5)____'].____(6)____()
+print(avg_spend)
+
+# (c) Mean, median and standard deviation of delivery times
+import numpy as np
+times = np.array([5, 7, 9, 9, 9, 9, 9, 9, 11, 13])
+mean_time = np.____(7)____(times)
+median_time = np.____(8)____(times)
+std_time = np.____(9)____(times)
+print(f"Mean: {mean_time}")
+print(f"Median: {median_time}")
+print(f"Standard Deviation: {std_time}")
+
+# (d) Write Python code to retrieve the last 4 elements of times. State the result.
+
+# (e) Waiting times for 4 couriers (rows) on 3 routes (columns):
+#     Morning, Midday and Afternoon, in that order.
+delays = np.array([
+    [10, 16, 22],
+    [14, 20, 26],
+    [18, 24, 18],
+    [22, 20, 30],
+])
+# Write the code to obtain the shape of delays and the total number of elements.
+# State both values and say what the shape means. Then write the code to compute
+# the mean delay per courier and the mean delay per route. Explain axis=0 and
+# axis=1, and state the values, including the overall mean.`;
+const MOCK_CODE_22 = `# TODO 1. import BeautifulSoup from bs4
+
+html = """... the HTML given in the question ..."""
+
+# TODO 2. parse html into a variable called soup, using 'html.parser'
+
+# TODO 3. find all article tags with the class 'product' and store them in products
+
+# TODO 4. extract the name and the price of the SECOND product into name and price
+
+# TODO 5. extract the href of every product link into a list called hrefs`;
+const MOCK_HTML_CAT = `<div id="catalogue">
+  <article class="product">
+    <h2>Desk Lamp</h2>
+    <p class="price">R179</p>
+    <a href="/lamp">View</a>
+  </article>
+  <article class="product">
+    <h2>Notebook Set</h2>
+    <p class="price">R89</p>
+    <a href="/notebooks">View</a>
+  </article>
+  <article class="product">
+    <h2>Cable Pack</h2>
+    <p class="price">R59</p>
+    <a href="/cables">View</a>
+  </article>
+</div>`;
+const MOCK_DBG = `(a)
+import requests
+response = requests.get(url)
+if response.status_code = 200:
+    print("OK")
+
+(b)
+from bs4 import BeautifulSoup
+soup = BeautifulSoup(html, "html.parser")
+items = soup.find_all("p", class="price")
+
+(c)
+import pandas as pd
+df = pd.read_csv("results.csv")
+high = df[df["score"] >= 70 and df["attendance"] >= 80]`;
+const MOCK_CODE_34 = `import pandas as pd
+from ____(1)____.model_selection import train_test_split
+from ____(2)____.linear_model import LinearRegression
+
+# Define features (X) and target (y)
+X = df[['AdSpend']]
+____(3)____ = df['Revenue']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Create and train the Linear Regression model
+model = ____(4)____()
+model.____(5)____(X_train, y_train)
+
+y_pred = model.predict(X_test)
+print(y_pred)`;
+
+const MOCK_Q = [
+  { id: "1.1", label: "Question 1.1", sec: "SECTION A: SHORT QUESTIONS (30 MARKS)", m: 10, title: "The Data Science Process — case study",
+    t: "A public clinic in Pietermaritzburg wants to reduce missed follow-up appointments. It has last year’s appointment records, including whether the patient attended, the patient’s age, the travel distance to the clinic, and whether an SMS reminder was sent.",
+    a: "Apply the five steps of the Data Science workflow to this clinic project. List each step and briefly explain what would be done at that step." },
+  { id: "1.2", label: "Question 1.2", sec: "SECTION A: SHORT QUESTIONS (30 MARKS)", m: 10, title: "Types of machine learning and choosing the right type",
+    t: "<b>(a)</b> Differentiate between Supervised, Unsupervised, and Reinforcement Learning. Give one example use case of each. <b>(6)</b>",
+    b: [
+      "<b>(b)</b> For each of the following tasks, state the most appropriate type of machine learning (classification, regression, unsupervised learning, or reinforcement learning) and justify your choice in one sentence. <b>(4)</b>",
+      "<b>i.</b> Predict a household’s monthly electricity bill, in rands, from household size and past usage.",
+      "<b>ii.</b> Group unlabelled retail transactions into similar baskets, when no category labels are available.",
+      "<b>iii.</b> Predict whether a bank transaction is fraudulent or legitimate.",
+      "<b>iv.</b> Train a robot arm to pick warehouse items by rewarding successful grips and penalising drops."
+    ] },
+  { id: "1.3", label: "Question 1.3", sec: "SECTION A: SHORT QUESTIONS (30 MARKS)", m: 10, title: "Data visualisation and communicating results",
+    t: "A manager will only act on a chart they can understand.",
+    b: [
+      "<b>(a)</b> Explain the purpose of data visualisation in the Data Science Process, and give two reasons why a poorly designed chart can lead to the wrong decision. <b>(4)</b>",
+      "<b>(b)</b> You must present the clinic’s missed-appointment findings to non-technical managers. Recommend one suitable chart type for comparing totals (or rates) across categories, and one for showing the relationship between two numeric variables. Justify each choice. <b>(4)</b>",
+      "<b>(c)</b> List two communication practices you would use on the chart (for example a title that states the finding, axis labels with units, or a one-sentence takeaway). <b>(2)</b>"
+    ] },
+  { id: "2.1", label: "Question 2.1", sec: "SECTION B: LONG QUESTIONS (30 MARKS)", m: 15, title: "Fill in the missing code (pandas and NumPy)",
+    t: "You are a junior data analyst at Umhlanga Home &amp; Tech, a small Durban retailer. The company wants you to clean up and analyse their sales data so that managers can understand product performance. The snippet below shows the structure of the file <code>shop_sales.csv</code>. The word <i>missing</i> in the table marks a missing value.",
+    table: { head: ["visit_id", "branch", "department", "spend", "items"],
+      rows: [["1","Umhlanga","Home","80","2"],["2","Berea","Tech","350","1"],["3","Umhlanga","Tech","200","2"],["4","Berea","Home","missing","3"],["5","Durban CBD","Home","60","1"],["6","Umhlanga","Tech","150","5"]] },
+    intro: "Using pandas and NumPy, complete the following code snippets. Blanks are numbered.",
+    code: MOCK_CODE_21, fmt: MOCK_FMT_BLANKS },
+  { id: "2.2", label: "Question 2.2", sec: "SECTION B: LONG QUESTIONS (30 MARKS)", m: 15, title: "Complete the program (# TODO) and debug",
+    t: "<b>(a)</b> Copy and complete the following program by replacing each <code># TODO</code> comment with the correct Python. The HTML below is already stored in a string called <code>html</code>. <b>(10)</b>",
+    pre: MOCK_HTML_CAT,
+    code: MOCK_CODE_22,
+    after: "<b>(b)</b> Each short snippet below contains <b>one</b> error. For each snippet: identify the error, and write the corrected line (or lines). <b>(5)</b>",
+    code2: MOCK_DBG, fmt: MOCK_FMT_TODO },
+  { id: "3.1", label: "Question 3.1", sec: "SECTION C: CASE STUDY (40 MARKS)", m: 12, title: "Case study — pandas and Matplotlib",
+    t: "You are a junior data analyst at Umhlanga Home &amp; Tech. Using the same <code>shop_sales.csv</code> file given in Question 2.1, the manager has asked you to clean the data, create a useful new column, identify large Umhlanga sales, and present a chart the team can act on. Write Python code (pandas and Matplotlib) to perform the following tasks.",
+    b: [
+      "<b>(a)</b> Load the dataset and display basic information, including shape, column names and data types. <b>(2)</b>",
+      "<b>(b)</b> Check for missing values and handle them appropriately. Display the count of missing values for each column, then fill the missing <code>spend</code> values with the median of that column. <b>(3)</b>",
+      "<b>(c)</b> Create a new column called <code>line_total</code>, calculated as <code>spend</code> multiplied by <code>items</code>. <b>(2)</b>",
+      "<b>(d)</b> Filter the dataset to create a new DataFrame called <code>umhlanga_big</code> containing only rows where the branch is Umhlanga and <code>line_total</code> is at least 200. <b>(2)</b>",
+      "<b>(e)</b> Using <code>fig, ax = plt.subplots()</code>, create a vertical bar chart of the total <code>line_total</code> per department. Include a title, axis labels and <code>plt.show()</code>. <b>(3)</b>"
+    ] },
+  { id: "3.2", label: "Question 3.2", sec: "SECTION C: CASE STUDY (40 MARKS)", m: 10, title: "Probability — two-way table",
+    t: "A survey of 600 shoppers recorded whether each shopper is a repeat customer (R) and whether the shopper has a loyalty card (L). The results are shown below.",
+    table: { head: ["", "Has a loyalty card (L)", "No loyalty card (¬L)", "Total"],
+      rows: [["Repeat customer (R)","180","60","240"],["New customer (¬R)","90","270","360"],["Total","270","330","600"]] },
+    intro: "A shopper is selected at random. Show all working in each part. Name the rule, write the formula, substitute, and give the answer as a fraction or a decimal and as a percentage.",
+    b: [
+      "<b>(a)</b> Find P(R and L). <b>(2)</b>",
+      "<b>(b)</b> Find P(R or L). <b>(3)</b>",
+      "<b>(c)</b> Are the events “repeat customer” and “has a loyalty card” independent? Show the calculations that support your conclusion. <b>(3)</b>",
+      "<b>(d)</b> Calculate P(L | ¬R), the probability that a shopper has a loyalty card given that the shopper is a new customer. <b>(2)</b>"
+    ] },
+  { id: "3.3", label: "Question 3.3", sec: "SECTION C: CASE STUDY (40 MARKS)", m: 10, title: "Further probability",
+    t: "Show all working in each part.",
+    b: [
+      "<b>(a)</b> A fair coin is tossed twice. Find the probability of getting one head and one tail (exactly one head). List the sample space first. <b>(2)</b>",
+      "<b>(b)</b> A box holds 12 pens, of which 8 are red and 4 are blue. Two pens are drawn at random, <b>without replacement</b>. Find the probability that both pens are red. <b>(2)</b>",
+      "<b>(c)</b> A courier company labels 25% of its parcels as express. Among express parcels, 80% arrive on time. Among standard (not express) parcels, 40% arrive on time. A parcel has just arrived on time. Find the probability that it was an express parcel. <b>(2)</b>",
+      "<b>(d)</b> State the law of large numbers. <b>(2)</b> Then, in one sentence each, contrast Frequentist probability with Bayesian probability. <b>(2)</b>"
+    ] },
+  { id: "3.4", label: "Question 3.4", sec: "SECTION C: CASE STUDY (40 MARKS)", m: 8, title: "Simple linear regression — interpretation and code",
+    t: "A gym models monthly revenue from monthly advertising spend. <b>Both variables are recorded in thousands of rands.</b> The fitted line is <b>Revenue = 25.0 + 3.5 × AdSpend</b>.",
+    b: [
+      "<b>(a)</b> What is the slope of the regression line, and what does it represent in the context of this problem? If the gym increases advertising by R4&nbsp;000, what is the expected increase in revenue? <b>(3)</b>",
+      "<b>(b)</b> Copy and complete the code snippet that creates a simple linear regression of Revenue on AdSpend. <b>(5)</b>"
+    ],
+    code: MOCK_CODE_34, fmt: MOCK_FMT_REG }
+];
+
+function mockGet() { return S.mock || (S.mock = (typeof blankMock === "function" ? blankMock() : { start: null, finish: null, submitted: false, auto: false, view: "intro", warned: false })); }
+const mockKey = q => "mock:" + q.id;
+const mockAns = q => S.edits[mockKey(q)] || "";
+const mockDone = q => !!(mockAns(q).trim());
+const mockCount = () => MOCK_Q.filter(mockDone).length;
+const mockLeft = start => (start || 0) + MOCK_MS - Date.now();
+function mockHms(ms) {
+  const t = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  const z = n => String(n).padStart(2, "0");
+  return z(h) + ":" + z(m) + ":" + z(s);
+}
+
+function mockTable(tbl) {
+  if (!tbl) return "";
+  return `<div class="mock-tblwrap"><table class="mock-t"><thead><tr>${tbl.head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${tbl.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function mockQCard(q) {
+  const m = mockGet();
+  let inner = `<div class="mock-qh"><span>${esc(q.label)}${q.title ? " — " + esc(q.title) : ""}</span><span class="mock-marks">(${q.m} Marks)</span></div>`;
+  if (q.t) inner += `<div class="mock-stem">${q.t}</div>`;
+  if (q.table) inner += mockTable(q.table);
+  if (q.intro) inner += `<p class="muted">${q.intro}</p>`;
+  if (q.b) inner += `<ul>${q.b.map(x => `<li>${x}</li>`).join("")}</ul>`;
+  if (q.pre) inner += `<pre class="mock-code">${esc(q.pre)}</pre>`;
+  if (q.code) {
+    inner += `<p class="muted" style="margin:10px 0 4px">Code to complete: fill in the blanks and TODOs (the format your lecturer said to expect).</p>`;
+    inner += `<pre class="mock-code">${esc(q.code)}</pre>`;
+  }
+  if (q.after) inner += `<div class="mock-stem" style="margin-top:12px">${q.after}</div>`;
+  if (q.code2) inner += `<pre class="mock-code">${esc(q.code2)}</pre>`;
+  if (q.fmt) inner += `<p class="muted">${esc(q.fmt)}</p>`;
+  inner += `<textarea class="mock-ans" data-mock="${esc(q.id)}" placeholder="Enter your answer here..." aria-label="Answer for ${esc(q.label)}" ${m.submitted ? "disabled" : ""}>${esc(mockAns(q))}</textarea>`;
+  return `<div class="card mock-q" id="mock-q-${esc(q.id)}">${inner}</div>`;
+}
+function mockBarHTML() {
+  const m = mockGet(), start = m.start, left = start ? mockLeft(start) : MOCK_MS;
+  return `<div class="mock-bar" id="mockBar"><div class="mock-bar-in"><div><div class="mute">Time remaining</div><div id="mockTimer" class="${left < 10 * 60 * 1000 ? "low" : ""}">${mockHms(left)}</div></div><div class="mute" id="mockProg">Answered ${mockCount()} of ${MOCK_Q.length}</div></div></div>`;
+}
+function mockIntro() {
+  return `<div class="mock-wrap" id="mockRoot" data-view="intro">
+    <div class="card">
+      <div class="mute">Richfield Graduate Institute of Technology — Faculty of Information Technology</div>
+      <h1>DSC500 Mock Exam</h1>
+      <p>Duration: 3 hours &nbsp;|&nbsp; Total: 100 marks &nbsp;|&nbsp; All questions compulsory</p>
+      <p class="muted">Your answers save automatically in this browser as you type. The timer starts when you press Start. If it reaches zero, the test submits itself. The coding questions are fill-in-the-blank and TODO format, in separate questions. Marking happens afterwards, in chat — use Export for Liora after you submit. This paper is practice only; it is not the official examination.</p>
+      <button data-fx="mockstart">Start test</button>
+    </div>
+  </div>`;
+}
+function mockTest() {
+  let last = "", body = "";
+  MOCK_Q.forEach(q => {
+    if (q.sec !== last) { body += `<h2 class="mock-sec">${esc(q.sec)}</h2>`; last = q.sec; }
+    body += mockQCard(q);
+  });
+  return mockBarHTML() + `<div class="mock-wrap" id="mockRoot" data-view="test">${body}<div class="mock-row"><span></span><button data-fx="mockreview">Review Answers</button></div></div>`;
+}
+function mockReview() {
+  const rows = MOCK_Q.map(q => {
+    const ok = mockDone(q);
+    return `<tr><td><a href="#/mock" data-fx="mockjump" data-q="${esc(q.id)}">${esc(q.label)}</a></td><td>${q.m}</td><td class="${ok ? "mock-yes" : "mock-no"}">${ok ? "Answered" : "Not answered"}</td></tr>`;
+  }).join("");
+  return mockBarHTML() + `<div class="mock-wrap" id="mockRoot" data-view="review">
+    <h1>Review answers</h1>
+    <div class="card"><table class="mock-rev"><thead><tr><th>Question</th><th>Marks</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="mock-row"><button class="sec" data-fx="mockback">Back</button><button data-fx="mocksubmit">Submit</button></div>
+  </div>`;
+}
+function mockPlainQ(q) {
+  let t = (q.title ? q.title + "\n" : "") + (q.t ? q.t.replace(/<[^>]+>/g, "") + "\n" : "");
+  if (q.b) t += q.b.map(x => x.replace(/<[^>]+>/g, "")).join("\n") + "\n";
+  if (q.after) t += q.after.replace(/<[^>]+>/g, "") + "\n";
+  return t.trim();
+}
+function mockExport() {
+  const m = mockGet();
+  const start = m.start ? new Date(m.start) : null, fin = m.finish ? new Date(m.finish) : new Date();
+  const used = (m.finish || Date.now()) - (m.start || Date.now());
+  const loc = { timeZone: "Africa/Johannesburg" };
+  let out = "# DSC500 Mock Exam — Export for Liora\n";
+  out += "# Paste this into chat so Liora can mark it.\n#\n";
+  out += "# Start:  " + (start ? start.toLocaleString("en-ZA", loc) + " (Africa/Johannesburg)" : "—") + "\n";
+  out += "# Finish: " + fin.toLocaleString("en-ZA", loc) + " (Africa/Johannesburg)\n";
+  out += "# Time taken: " + mockHms(used) + "\n";
+  out += "# Questions answered: " + mockCount() + " of " + MOCK_Q.length + "\n";
+  out += "# Submitted: " + (m.auto ? "automatically, when the timer reached zero" : "by you") + "\n";
+  out += "# Total marks available: 100\n\n";
+  MOCK_Q.forEach(q => {
+    out += "# " + "=".repeat(60) + "\n";
+    out += "QUESTION " + q.id + " — " + (q.title || q.label) + "\n";
+    out += "MARKS AVAILABLE: " + q.m + "\n\n";
+    out += mockPlainQ(q).split("\n").map(l => "# " + l).join("\n") + "\n\n";
+    if (q.code) out += "# --- Code skeleton given in the paper ---\n" + q.code.split("\n").map(l => "# " + l).join("\n") + "\n\n";
+    out += "MY ANSWER\n";
+    out += (mockDone(q) ? mockAns(q).trim() : "[No answer given]") + "\n\n";
+  });
+  return out.trim() + "\n";
+}
+function mockSummary() {
+  const m = mockGet(), start = m.start ? new Date(m.start) : new Date(), fin = new Date(m.finish || Date.now());
+  const loc = { timeZone: "Africa/Johannesburg" };
+  const rows = [
+    ["Start time", start.toLocaleString("en-ZA", loc) + " (Africa/Johannesburg)"],
+    ["Finish time", fin.toLocaleString("en-ZA", loc) + " (Africa/Johannesburg)"],
+    ["Total time taken", mockHms((m.finish || Date.now()) - (m.start || Date.now()))],
+    ["Questions answered", mockCount() + " of " + MOCK_Q.length],
+    ["Submitted", m.auto ? "Automatically, when the timer reached zero" : "By you"]
+  ].map(r => `<tr><td class="mute">${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join("");
+  return mockBarHTML() + `<div class="mock-wrap" id="mockRoot" data-view="sum">
+    <h1>Test submitted</h1>
+    <div class="card"><table class="mock-rev">${rows}</table></div>
+    <div class="card" id="mockExportBox">
+      <h4>Export for Liora</h4>
+      <p class="muted">Copy this, or download the <code>.py</code> file, and paste it into chat so Liora can mark it. Model answers are not shown here.</p>
+      <div class="mock-row" style="justify-content:flex-start;margin-top:10px">
+        <button data-fx="mockcopy">Copy export</button>
+        <button class="sec" data-fx="mockdl">Download .py</button>
+      </div>
+      <p class="muted" id="mockMsg" aria-live="polite"></p>
+      <pre class="mock-export" id="mockTx">${esc(mockExport())}</pre>
+    </div>
+    <div class="mock-row"><span></span><button class="sec" data-fx="mocknew">Start a new attempt</button></div>
+  </div>`;
+}
+function mockPage() {
+  const m = mockGet();
+  if (m.submitted) return mockSummary();
+  if (m.start && mockLeft(m.start) <= 0) { mockFinalize(true); return mockSummary(); }
+  if (m.view === "review" && m.start) return mockReview();
+  if (m.start) return mockTest();
+  return mockIntro();
+}
+
+let mockTick = null;
+function mockUpdBar() {
+  const t = document.getElementById("mockTimer"), p = document.getElementById("mockProg"), m = mockGet();
+  if (p) p.textContent = "Answered " + mockCount() + " of " + MOCK_Q.length;
+  if (!t || !m.start) return;
+  const left = mockLeft(m.start);
+  t.textContent = mockHms(left);
+  t.classList.toggle("low", left < 10 * 60 * 1000);
+  if (left <= 30 * 60 * 1000 && left > 0 && !m.warned) { m.warned = true; save(); if (typeof toast === "function") toast("⏰ 30 minutes left in the mock exam!", 6000); }
+  if (left <= 0) mockFinalize(true);
+}
+function mockRunTimer() {
+  clearInterval(mockTick);
+  mockUpdBar();
+  const m = mockGet();
+  if (m.start && !m.submitted) mockTick = setInterval(mockUpdBar, 500);
+}
+function mockStart() {
+  const m = mockGet();
+  if (m.start && !m.submitted) return;
+  S.mock = { start: Date.now(), finish: null, submitted: false, auto: false, view: "test", warned: false };
+  save(); writeNow(); route();
+}
+function mockFinalize(auto) {
+  const m = mockGet();
+  if (m.submitted) return;
+  const now = Date.now();
+  m.finish = auto ? Math.min(now, (m.start || now) + MOCK_MS) : now;
+  m.submitted = true; m.auto = !!auto; m.view = "sum";
+  save(); writeNow(); clearInterval(mockTick);
+  if (location.hash === "#/mock") route();
+}
+function mockAsk(msg, yes, cb) {
+  const o = document.createElement("div"); o.id = "mockOv";
+  o.innerHTML = `<div class="card" role="dialog" aria-modal="true"><p style="margin-top:0"></p><div class="mock-row" style="margin-top:12px"><button class="sec" id="mockNo">Cancel</button><button id="mockYes"></button></div></div>`;
+  o.querySelector("p").textContent = msg; o.querySelector("#mockYes").textContent = yes;
+  document.body.appendChild(o);
+  o.querySelector("#mockNo").onclick = () => o.remove();
+  o.querySelector("#mockYes").onclick = () => { o.remove(); cb(); };
+  o.querySelector("#mockNo").focus();
+}
+function mockCopy() {
+  const txt = mockExport(), msg = document.getElementById("mockMsg");
+  const say = s => { if (msg) msg.textContent = s; };
+  const fallback = () => {
+    const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.remove(); say(ok ? "✅ Copied the export to the clipboard." : "⚠️ Copy was blocked. Select the text below and copy it manually.");
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => say("✅ Copied the export to the clipboard."), fallback);
+  else fallback();
+}
+function mockDownload() {
+  const blob = new Blob([mockExport()], { type: "text/x-python" }), u = URL.createObjectURL(blob), l = document.createElement("a");
+  l.href = u; l.download = "dsc500_mock_export.py"; document.body.appendChild(l); l.click(); l.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 4000);
+  const msg = document.getElementById("mockMsg"); if (msg) msg.textContent = "⬇ File saved to your downloads.";
+}
+
+const _mockPrevEnter = FX.enter, _mockPrevLeave = FX.leave;
+FX.enter = id => {
+  document.body.classList.toggle("mock-page", id === "mock");
+  if (id === "mock") mockRunTimer(); else clearInterval(mockTick);
+  if (_mockPrevEnter) _mockPrevEnter(id);
+};
+FX.leave = () => { if (_mockPrevLeave) _mockPrevLeave(); };
+FX.pages.mock = { html: mockPage, title: "Mock Exam" };
+
+document.addEventListener("input", e => {
+  const ta = e.target; if (!ta || !ta.matches || !ta.matches("textarea.mock-ans")) return;
+  const id = ta.getAttribute("data-mock"); if (!id) return;
+  S.edits["mock:" + id] = ta.value; S.editTs["mock:" + id] = Date.now(); save();
+  const p = document.getElementById("mockProg"); if (p) p.textContent = "Answered " + mockCount() + " of " + MOCK_Q.length;
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-fx]"); if (!b) return;
+  const f = b.dataset.fx;
+  if (f === "mockstart") { mockStart(); return; }
+  if (f === "mockreview") { mockGet().view = "review"; save(); route(); return; }
+  if (f === "mockback") { mockGet().view = "test"; save(); route(); return; }
+  if (f === "mockjump") { e.preventDefault(); mockGet().view = "test"; save(); route(); const el = document.getElementById("mock-q-" + b.dataset.q); if (el) { el.scrollIntoView(); const ta = el.querySelector("textarea"); if (ta) ta.focus(); } return; }
+  if (f === "mocksubmit") {
+    const left = MOCK_Q.length - mockCount();
+    mockAsk((left ? left + " question(s) are not answered. " : "") + "Are you sure you want to submit? You cannot change your answers afterwards.", "Yes, submit", () => mockFinalize(false));
+    return;
+  }
+  if (f === "mockcopy") { mockCopy(); return; }
+  if (f === "mockdl") { mockDownload(); return; }
+  if (f === "mocknew") {
+    mockAsk("Start a new attempt? Your saved answers and times for this mock will be cleared.", "Start new attempt", () => {
+      MOCK_Q.forEach(q => { delete S.edits[mockKey(q)]; delete S.editTs[mockKey(q)]; });
+      S.mock = (typeof blankMock === "function" ? blankMock() : { start: null, finish: null, submitted: false, auto: false, view: "intro", warned: false });
+      save(); writeNow(); clearInterval(mockTick); route();
+    });
+  }
+});
+
 /* ===== v3 · part 2: nav, progress extras ===== */
-FX.navExtra = () => `<h6>Theory &amp; exam</h6><a href="#/theory" class="${location.hash === "#/theory" ? "active" : ""}">🧠 Theory Prep<span class="tick">${S.done["final:th"] || (S.ex["th-final"] || {}).solved ? "✓" : ""}</span></a><a href="#/exam" class="${location.hash === "#/exam" ? "active" : ""}">⏱ Exam mode</a><a href="#/resources" class="${location.hash === "#/resources" ? "active" : ""}">📚 Resources</a><a href="#/files" class="${location.hash === "#/files" ? "active" : ""}">🗂 My files</a>`;
+FX.navExtra = () => `<h6>Theory &amp; exam</h6><a href="#/theory" class="${location.hash === "#/theory" ? "active" : ""}">🧠 Theory Prep<span class="tick">${S.done["final:th"] || (S.ex["th-final"] || {}).solved ? "✓" : ""}</span></a><a href="#/mock" class="${location.hash === "#/mock" ? "active" : ""}">📝 Mock Exam<span class="tick">${(S.mock && S.mock.submitted) ? "✓" : ""}</span></a><a href="#/exam" class="${location.hash === "#/exam" ? "active" : ""}">⏱ Exam mode</a><a href="#/resources" class="${location.hash === "#/resources" ? "active" : ""}">📚 Resources</a><a href="#/files" class="${location.hash === "#/files" ? "active" : ""}">🗂 My files</a>`;
 FX.progressExtra = () => {
   const thRows = TH_LV.map(l => `<td>${thSolved(l[0])}/${thList(l[0]).length}</td>`).join(""), ppRows = PP_LV.map(l => `<td>${ppDone(l[0])}/${ppList(l[0]).length}</td>`).join("");
   const sk = Object.entries(S.ex).filter(([k, v]) => v.skipped && !v.solved).length, pk = Object.entries(S.ex).filter(([k, v]) => v.peeked).length, ap = Object.entries(S.ex).filter(([k, v]) => v.afterPeek).length;
@@ -1043,6 +1483,7 @@ FX.progressExtra = () => {
   const hist = (S.exam.hist || []).slice(-3).reverse();
   return weakCard(12) + `<div class="card"><h4>🔎 Skips and peeks</h4><p class="muted" style="margin:0">Skipped (opened, left unsolved): <b>${sk}</b> · solution looked at: <b>${pk}</b> · solved only after the solution: <b>${ap}</b> · time practising: <b>${mins} min</b></p></div>
   <div class="card"><h4>🧠 Theory Prep &amp; ✍️ worked probability</h4><table class="t"><tr><th></th><th>Easy</th><th>Med</th><th>Hard</th><th>Final</th></tr><tr><td><a href="#/theory">Theory Prep</a></td>${thRows}</tr><tr><td><a href="#/probability">Show your working</a></td>${ppRows}</tr></table></div>
+  <div class="card"><h4>📝 Mock Exam</h4><p style="margin:0 0 8px">${(S.mock && S.mock.submitted) ? "Submitted. <a href=\"#/mock\">Open your export for Liora</a>." : (S.mock && S.mock.start) ? "In progress. <a href=\"#/mock\">Return to the paper</a>." : "The Sunday paper, in the exam layout. <a href=\"#/mock\">Start the 3-hour Mock Exam</a>."}</p></div>
   <div class="card"><h4>⏱ Exam mode</h4>${hist.length ? hist.map(h => `<div>${new Date(h.ts).toLocaleString()}: <b>${h.score}/${h.total}</b> in ${Math.round(h.used / 60)} min${h.auto ? " (auto-submitted)" : ""}</div>`).join("") + `<p style="margin:6px 0 0"><a href="#/exam">Open exam mode</a></p>` : `No attempts yet. <a href="#/exam">Start a timed 3-hour mock</a>.`}</div>`;
 };
 window.__V3 = { gradePart, stepCheck, checkFormula, checkSub, checkAns, canonF, absF, evalExpr, weakList, nextBest, TH, PPS, rubricHits, goTo, trkTouch, S: () => S };
@@ -1316,7 +1757,7 @@ function resourcesPage() {
   <div class="card"><h4>🐍 Practise in your IDE (PyCharm)</h4><p class="muted" style="margin:0 0 8px">Starter .py files: the section's <b>Hard</b> exercises and <b>Final Challenge</b> as comments + TODO skeletons.</p><div class="resgrid">${STARTER_SECS.map(s => `<button type="button" class="sec" data-fx="starter" data-sec="${s}">⬇ ${s === "examboss" ? "👹 Exam Boss" : esc(SEC_NAMES[s])}</button>`).join("")}</div>
   <p class="muted" style="margin:10px 0 4px">Data files for your IDE (save next to the .py):</p><div class="resgrid">${DATA_FILES.map(f => `<button type="button" class="sec" data-fx="datadl" data-f="${f}">⬇ ${f}</button>`).join("")}</div></div>
   <div class="card"><h4>🗂 My files</h4><p style="margin:0 0 8px">Upload your own PDFs, images, .py and .csv files and open them here. <b>.py</b> and <b>.csv</b> files open in a Python editor you can run.</p><a class="btn" href="#/files" style="text-decoration:none">Open My files</a></div>
-  <div class="card"><h4>⏱ Mock exam</h4><p style="margin:0">Your timed 3-hour mock lives under <a href="#/exam">Exam mode</a>.</p></div>`;
+  <div class="card"><h4>⏱ Mock exam</h4><p style="margin:0">Sit the Sunday paper under <a href="#/mock">Mock Exam</a> (export for Liora). Auto-marked practice is still under <a href="#/exam">Exam mode</a>.</p></div>`;
 }
 FX.pages.resources = { html: resourcesPage, title: "Resources" };
 document.addEventListener("click", async e => {
@@ -1544,15 +1985,45 @@ document.addEventListener("click", async e => {
 const YT = "https://www.youtube.com/";
 const W = (title, len, url, kind, note) => ({ title, len, url, kind, note });
 const WATCH = {
-  "theory-process": [W("Steps in the Data Science Process (Short)", "47s", YT + "shorts/sPz9EH4DITo", "short"), W("Data Science in 5 minutes (case study)", "4:38", YT + "watch?v=A0ZOH2Wmxwo")],
-  "theory-ml": [W("Supervised vs Unsupervised vs Reinforcement", "1:52", YT + "watch?v=DZw1xnyHbVc"), W("ML explained with Netflix (Short)", "50s", YT + "shorts/7AnODvHiXNc", "short"), W("Telling Stories with Data", "4:47", YT + "watch?v=r5_34YnCmMY"), W("Instagram Reel on the 3 ML types", "Reel", "https://www.instagram.com/reel/DJgVBTUTaLq/", "ig"), W("TikTok: What is ML?", "47s", "https://www.tiktok.com/@lukebarousse/video/7169310785632718126", "tt")],
-  scraping: [W("BeautifulSoup on books.toscrape (Short)", "1:00", YT + "shorts/nc1hBwFd_tA", "short")],
-  debugging: [W("Python errors and debugging", "2:11", YT + "watch?v=RaopwRVB9oM")],
-  numpy: [W("NumPy mean, median, std", "4:38", YT + "watch?v=9iaOSMapwAc")],
-  probability: [W("Relative Frequency", "7:54", YT + "watch?v=MS6lnCTgTSw"), W("Addition rule (OR)", "10:42", YT + "watch?v=QE2uR6Z-NcU"), W("Independent and dependent events", "8:18", YT + "watch?v=uzkc-qNVoOk"), W("Conditional probability", "6:42", YT + "watch?v=6xPkG2pA-TU"), W("Bayes' Theorem", "5:05", YT + "watch?v=Zxm4Xxvzohk"), W("Law of Large Numbers", "1:07", YT + "watch?v=O50iZvblObs")],
-  pandas: [W("Pandas filtering chapter (from 36:32)", "from 36:32", YT + "watch?v=VXtjG_GzO7Q&t=2192s"), W("pd.to_datetime", "1:24", YT + "watch?v=Fx0J6lSO194")],
-  matplotlib: [W("Matplotlib subplots (Bro Code)", "6:54", YT + "watch?v=KFMs_ZZNgmo")],
-  regression: [W("Linear Regression in under 50s", "59s", YT + "watch?v=iWFBiUGXlgU", "short"), W("train_test_split explained", "6:33", YT + "watch?v=fwY9Qv96DJY", "", "skip model.score, R² is out of scope")]
+  "theory-process": [
+    W("Steps in the Data Science Process (Short)", "47s", YT + "shorts/sPz9EH4DITo", "short", "Watch the process from collection to interpretation; official exam wording is on the cheatsheet (step names may differ)."),
+    W("Data Science in 5 minutes (case study)", "4:38", YT + "watch?v=A0ZOH2Wmxwo", "", "Liverpool case study — objective, collect, clean, visualise, then conclude; map these to the course process, not new stage names.")
+  ],
+  "theory-ml": [
+    W("Supervised vs Unsupervised vs Reinforcement", "1:52", YT + "watch?v=DZw1xnyHbVc", "", "Learn the 3 types and examples (spam/prices, segments, rewards); regression vs classification is a split inside supervised."),
+    W("ML explained with Netflix (Short)", "50s", YT + "shorts/7AnODvHiXNc", "short", "Real-world ML (recommendations, fraud, self-driving); it does not teach the 3 types or the 8 stages."),
+    W("Telling Stories with Data", "4:47", YT + "watch?v=r5_34YnCmMY", "", "Communication — setup, conflict, resolution, and chart titles that carry the story."),
+    W("Instagram Reel on the 3 ML types", "Reel", "https://www.instagram.com/reel/DJgVBTUTaLq/", "ig", "Supervised (labelled, spam), unsupervised (patterns, segments), reinforcement (rewards, games/cars)."),
+    W("TikTok: What is ML?", "47s", "https://www.tiktok.com/@lukebarousse/video/7169310785632718126", "tt", "A 47s 'what is ML' intro only; get the 3 types and official 8 stages from the other clips and the cheatsheet.")
+  ],
+  scraping: [
+    W("BeautifulSoup on books.toscrape (Short)", "1:00", YT + "shorts/nc1hBwFd_tA", "short", "Watch requests.get, BeautifulSoup(..., 'html.parser'), find_all, and attribute access (['title']); use the cheatsheet for find() and select().")
+  ],
+  debugging: [
+    W("Python errors and debugging", "2:11", YT + "watch?v=RaopwRVB9oM", "", "SyntaxError, NameError, TypeError, and reading the traceback from the bottom up.")
+  ],
+  numpy: [
+    W("NumPy mean, median, std", "4:38", YT + "watch?v=9iaOSMapwAc", "", "Mean and median from 0:15; min, max, std, variance and quartiles from 2:10 — all descriptive stats, no CLT.")
+  ],
+  probability: [
+    W("Relative Frequency", "7:54", YT + "watch?v=MS6lnCTgTSw", "", "Experimental probability = frequency / trials, and using it to judge fairness."),
+    W("Addition rule (OR)", "10:42", YT + "watch?v=QE2uR6Z-NcU", "", "P(A or B)=P(A)+P(B)−P(A and B), and skip the subtract-overlap step only when events are mutually exclusive."),
+    W("Dependent probability (without replacement)", "6:38", YT + "watch?v=VjLEoo3hIoM", "", "Marbles without replacement: P(both green)=P(first)×P(second|first). The expected-value money question at the end is extra, not exam scope."),
+    W("Conditional probability", "6:42", YT + "watch?v=6xPkG2pA-TU", "", "Work P(A and B) in both orders, then P(B|A); if P(A|B)≠P(A) the events are dependent."),
+    W("Bayes' Theorem", "5:05", YT + "watch?v=Zxm4Xxvzohk", "", "Use the probability tree to update after new evidence (heads); that updating is Bayes."),
+    W("Law of Large Numbers", "1:07", YT + "watch?v=O50iZvblObs", "", "More trials → relative frequency (and the sample mean) settle near the true value; this is not the CLT.")
+  ],
+  pandas: [
+    W("Pandas filtering chapter (from 36:32)", "from 36:32", YT + "watch?v=VXtjG_GzO7Q&t=2192s", "", "Filtering 36:32–43:06, groupby/aggregation 43:06–50:57, cleaning (dropna, fillna, text, dtypes, drop_duplicates) from 50:57. Earlier import 22:14 and selection 27:15 are also in scope."),
+    W("pd.to_datetime", "1:24", YT + "watch?v=Fx0J6lSO194", "", "Convert a date column with pd.to_datetime — that's the dates cleaning step.")
+  ],
+  matplotlib: [
+    W("Matplotlib subplots (Bro Code)", "6:54", YT + "watch?v=KFMs_ZZNgmo", "", "Watch fig, axes = plt.subplots(...) and plotting on axes[row, col] (Akhona's style); bar charts mentioned at the end are in scope.")
+  ],
+  regression: [
+    W("Linear Regression in under 50s", "59s", YT + "watch?v=iWFBiUGXlgU", "short", "Slope, intercept, LinearRegression, fit and predict; it does not show train_test_split."),
+    W("train_test_split explained", "6:33", YT + "watch?v=fwY9Qv96DJY", "", "Watch until 5:35 for the split, random_state, fit and predict. From 5:35, model.score is R² (he even calls it 'accuracy') — skip it. He also uses two predictors, which is an extension.")
+  ]
 };
 const WATCH_KEY = id => /^pandas\d/.test(id) ? "pandas" : id;
 const WATCH_ICON = { short: "📱", ig: "📸", tt: "🎵", "": "▶️" };
@@ -1564,7 +2035,7 @@ function watchHTML(id) {
 const WATCH_ORDER = [["🧭 Data Science Process", "theory-process"], ["🤖 Machine Learning and communicating results", "theory-ml"], ["🕸️ Web scraping", "scraping"], ["🐞 Debugging", "debugging"], ["🔢 NumPy", "numpy"], ["🎲 Probability", "probability"], ["🐼 Pandas", "pandas"], ["📊 Matplotlib", "matplotlib"], ["📈 Regression", "regression"]];
 function watchOrderHTML() {
   let n = 0;
-  return `<div class="card watch"><h4>▶️ Watch in this order</h4><p class="muted" style="margin:0 0 6px">Short ones first in each topic. Every link opens in a new tab.</p>${WATCH_ORDER.map(([name, k]) => `<h5 class="watchh">${name}</h5><ol class="watchlist" start="${n + 1}">${WATCH[k].map(w => watchRow(w, ++n)).join("")}</ol>`).join("")}</div>`;
+  return `<div class="card watch"><h4>▶️ Watch in this order</h4><p class="muted" style="margin:0 0 6px">Short ones first in each topic. Every link opens in a new tab. Each note says what to watch for in scope.</p>${WATCH_ORDER.map(([name, k]) => `<h5 class="watchh">${name}</h5><ol class="watchlist" start="${n + 1}">${WATCH[k].map(w => watchRow(w, ++n)).join("")}</ol>`).join("")}</div>`;
 }
 window.__V3.watch = { WATCH, WATCH_ORDER };
 
@@ -1609,6 +2080,138 @@ document.addEventListener("click", async e => {
   else if (f === "synccancel") { $("#syTxt").value = ""; $("#syBox").hidden = true; msg.textContent = ""; }
 });
 window.__V3.theme = { getTheme, applyTheme, THEME_LIST };
+
+/* ===== v3 · part 11: same-origin self-update on rawcdn.githack (keeps progress) ===== */
+const UPD_REPO = "Shiv0130/dsc500-practice-lab";
+const UPD_HOST = "rawcdn.githack.com";
+const UPD_TTL = 5 * 60 * 1000;
+const UPD_LS = "dsc500lab.updateCache";
+const UPD_REDIR = "dsc500lab.updateRedirected";
+const UPD_TOAST = "dsc500lab.justUpdated";
+
+function updShasEqual(a, b) {
+  if (!a || !b) return false;
+  const x = String(a).toLowerCase(), y = String(b).toLowerCase();
+  return x === y || x.startsWith(y) || y.startsWith(x);
+}
+function updDecide(p) {
+  const ownId = p && p.ownId, remoteId = p && p.remoteId, latestSha = p && p.latestSha, currentSha = p && p.currentSha;
+  if (!ownId || !remoteId || ownId === remoteId) return { action: "stay" };
+  if (p && p.alreadyRedirectedFor === ownId) return { action: "stop" };
+  if (!latestSha || !/^[0-9a-f]{7,40}$/i.test(latestSha)) return { action: "stay" };
+  if (currentSha && updShasEqual(latestSha, currentSha)) return { action: "stay" };
+  return { action: "redirect", sha: latestSha };
+}
+function updCurrentSha(pathname) {
+  const m = String(pathname || "").match(/\/Shiv0130\/dsc500-practice-lab\/([0-9a-f]{7,40})\//i);
+  return m ? m[1] : null;
+}
+function updDest(sha, hash) {
+  return "https://" + UPD_HOST + "/" + UPD_REPO + "/" + sha + "/index.html" + (hash || "");
+}
+function updCacheGet() {
+  try {
+    const o = JSON.parse(localStorage.getItem(UPD_LS) || "null");
+    if (o && o.ts && (Date.now() - o.ts) < UPD_TTL) return o;
+  } catch (e) {}
+  return null;
+}
+function updCacheSet(o) {
+  try { localStorage.setItem(UPD_LS, JSON.stringify(Object.assign({}, o, { ts: Date.now() }))); } catch (e) {}
+}
+function updShouldRun() {
+  if (typeof window !== "undefined" && window.__UPD_FORCE) return true;
+  return location.hostname === UPD_HOST;
+}
+function updShowToast() {
+  try {
+    if (sessionStorage.getItem(UPD_TOAST) === "1") {
+      sessionStorage.removeItem(UPD_TOAST);
+      if (typeof toast === "function") toast("Updated to latest ✓", 4000);
+    }
+  } catch (e) {}
+}
+async function updFetchJson(url) {
+  const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
+async function updOwnId() {
+  const j = await updFetchJson("./version.json");
+  return j && j.id ? j.id : null;
+}
+async function updRemote(bust) {
+  if (!bust) {
+    const c = updCacheGet();
+    if (c && c.remoteId) return c;
+  }
+  const url = "https://raw.githubusercontent.com/" + UPD_REPO + "/main/version.json?t=" + Date.now();
+  const j = await updFetchJson(url);
+  const prev = (() => { try { return JSON.parse(localStorage.getItem(UPD_LS) || "null"); } catch (e) { return null; } })() || {};
+  const o = { remoteId: j && j.id ? j.id : null, sha: prev.sha || null };
+  if (!o.remoteId) return null;
+  updCacheSet(o);
+  return o;
+}
+async function updLatestSha() {
+  const c = updCacheGet();
+  if (c && c.sha) return c.sha;
+  const r = await fetch("https://api.github.com/repos/" + UPD_REPO + "/commits/main", {
+    cache: "no-store",
+    headers: { Accept: "application/vnd.github+json" }
+  });
+  if (!r.ok) throw new Error(String(r.status));
+  const j = await r.json();
+  const sha = j && j.sha;
+  if (!sha) return null;
+  const prev = (() => { try { return JSON.parse(localStorage.getItem(UPD_LS) || "null"); } catch (e) { return null; } })() || {};
+  updCacheSet({ remoteId: prev.remoteId || null, sha: sha });
+  return sha;
+}
+function updGo(url) {
+  const hook = window.__V3 && window.__V3.update && window.__V3.update.go;
+  if (typeof hook === "function") return hook(url);
+  location.replace(url);
+}
+async function updCheck() {
+  try { updShowToast(); } catch (e) {}
+  if (!updShouldRun()) return { action: "skip" };
+  try {
+    const ownId = await updOwnId();
+    let already = null;
+    try { already = sessionStorage.getItem(UPD_REDIR); } catch (e) {}
+    const remote = await updRemote(false);
+    if (!ownId || !remote || !remote.remoteId) return { action: "stay" };
+    let sha = remote.sha || null;
+    const preview = updDecide({
+      ownId, remoteId: remote.remoteId, latestSha: sha || "0123456789abcdef", currentSha: updCurrentSha(location.pathname), alreadyRedirectedFor: already
+    });
+    // If ids match we can stay without hitting the commits API.
+    if (ownId === remote.remoteId) return { action: "stay" };
+    if (preview.action === "stop") return { action: "stop" };
+    if (!sha) sha = await updLatestSha();
+    const decision = updDecide({
+      ownId, remoteId: remote.remoteId, latestSha: sha, currentSha: updCurrentSha(location.pathname), alreadyRedirectedFor: already
+    });
+    if (decision.action === "redirect") {
+      try {
+        sessionStorage.setItem(UPD_REDIR, ownId);
+        sessionStorage.setItem(UPD_TOAST, "1");
+      } catch (e) {}
+      updGo(updDest(decision.sha, location.hash || ""));
+    }
+    return decision;
+  } catch (e) {
+    return { action: "stay" };  // offline, 429, CORS, etc. — fail silently
+  }
+}
+
+function updAttach() {
+  window.__V3 = window.__V3 || {};
+  window.__V3.update = { check: updCheck, decide: updDecide, dest: updDest, currentSha: updCurrentSha, cacheKey: UPD_LS, ttl: UPD_TTL };
+}
+updAttach();
+if (typeof FX !== "undefined") FX.boot.push(() => { updAttach(); updCheck(); setInterval(updCheck, UPD_TTL); });
 
 
 const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px'); setHH(); window.addEventListener('resize', setHH); window.__PY = PY;
