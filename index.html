@@ -2186,7 +2186,8 @@ function updShowToast() {
   } catch (e) {}
 }
 async function updFetchJson(url) {
-  const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+  // cross-origin requests must stay "simple" (no cache option / custom headers): those add Cache-Control, which GitHub's CORS preflight rejects. A ?t= buster is used instead.
+  const r = /^https?:/.test(url) ? await fetch(url) : await fetch(url, { cache: "no-store" });
   if (!r.ok) throw new Error(String(r.status));
   return r.json();
 }
@@ -2210,10 +2211,7 @@ async function updRemote(bust) {
 async function updLatestSha() {
   const c = updCacheGet();
   if (c && c.sha) return c.sha;
-  const r = await fetch("https://api.github.com/repos/" + UPD_REPO + "/commits/main", {
-    cache: "no-store",
-    headers: { Accept: "application/vnd.github+json" }
-  });
+  const r = await fetch("https://api.github.com/repos/" + UPD_REPO + "/commits/main?t=" + Date.now());
   if (!r.ok) throw new Error(String(r.status));
   const j = await r.json();
   const sha = j && j.sha;
